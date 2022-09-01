@@ -1,0 +1,1 @@
+cls && jai ../build.jai -- test && "../test"

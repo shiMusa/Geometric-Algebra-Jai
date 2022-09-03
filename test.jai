@@ -1,5 +1,5 @@
 #import "Basic";
-#import,file "module.jai"(1,3,0);
+#import,file "module.jai"(2,1,1);
 
 main :: () {
     println("% : %", fmt(e12), formatInt(e12.basis, 2));
@@ -15,6 +15,26 @@ main :: () {
     println("42.0 * e2 = %", fmt(42.0 * e2));
     println("e3 * 313.0 = %", fmt(e3 * 313.0));
 
-    println("mv = %", mv(1.0, -42.0*e2, e3*313.0, e01 / 10.0));
-    println("mv = %", fmt(mv(1.0, -42.0*e2, e3*313.0, e01 / 10.0)));
+    x := mv(1.0, -42.0*e2, e3*313.0, e12 / 10.0);
+    println("x = % = %", fmt(x), x);
+
+    x = x + x;
+    println("x = %", fmt(x));
+
+    x = x + 100.0*e2 - 1.0*e23;
+    println("x = %", fmt(x));
+    println("-x = %", fmt(-x));
+
+    y := 3.0 - 4.0 * e1 + 0.123 * e13 + 0.321 * e234;
+    println("e1   = % = %", e1  , fmt(e1  ));
+    println("e13  = % = %", e13 , fmt(e13 ));
+    println("e234 = % = %", e234, fmt(e234));
+    println("y = % = %", fmt(y), y);
+    println("x*y = %", fmt(x*y));
+    println("y*x = %", fmt(y*x));
+    println("x*x = %", fmt(x*x));
+    println("y*y = %", fmt(y*y));
+
+
+    println("N_ELEMENTS = %", N_ELEMENTS);
 }

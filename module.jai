@@ -20,17 +20,14 @@ N :: POS + NEG + ZER;
 
 #run print("Generating algebra with basis (%,%,%). Basis elements represented as %\n", POS, NEG, ZER, B);
 
-Number :: struct {
-    basis: B;
+BasisNumber :: struct(basis: B) {
     value: T;
 }
-number :: (val: T, basis: B) -> Number {
-    res : Number;
-    res.value = val;
-    res.basis = basis;
-    return res;
+bn :: (value: T, $basis: B = 0) -> BasisNumber(basis) {
+    res : BasisNumber(B) = ---;
+    res.value = value;
 }
-fmt :: (n: Number, $nosign := false) -> string {
+fmt :: (n: BasisNumber, $nosign := false) -> string {
     builder: String_Builder;
 
     #if nosign {
@@ -39,25 +36,82 @@ fmt :: (n: Number, $nosign := false) -> string {
     } else 
         print_to_builder(*builder, "% ", n.value);
 
-
-    // if n.basis then append(*builder, " e");
     for 0..N-1 {
         if n.basis & (1 << it) {
-            print_to_builder(*builder, "e%", it);
+            print_to_builder(*builder, "e%", it+1);
         }
     }
 
     return builder_to_string(*builder);
 }
 
-e :: (indices: ..int) -> Number {
-    b : B;
-    for indices
-        b |= cast(B)1 << cast(B)it;
-    return number(one, b);
-}
+// e :: inline ($indices: ..int) -> BasisNumber($bn) #modify {
+//     bn = cast(B)0;
+//     for indices
+//         bn |= cast(B)1 << cast(B)(it-1);
+//     return true;
+// } {
+//     return BasisNumber(bn).{one};
+// }
 
-e0 :: #run number(one, cast(B)0);
+operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> $C #modify {
+    DEBUG :: false;
+    ba := get_const_value(_A, "basis", B);
+    bb := get_const_value(_B, "basis", B);
+    #if DEBUG println("ba = %, bb = %", ba, bb);
+    
+    overlap := ba & bb;
+    if overlap >> (POS+NEG) != 0 {
+        C = T;
+        return true;
+    }
+    if ba ^ bb == 0 { // all basis elements square to +-1
+        C = T;
+        return true;
+    }
+
+    C = _A;
+    set_const_value(cast(*Type_Info_Struct)C, "basis", ba ^ bb);
+    #if DEBUG print("C = %\n", C);
+    return true;
+} {
+    DEBUG :: true;
+    #if DEBUG print("% * %\n", fmt(a), fmt(b));
+    
+    // a basis element squares to zero
+    overlap :: _A.basis & _B.basis;
+    #if DEBUG print("overlap %\n", formatInt(overlap,2));
+    #if overlap >> (POS+NEG) != 0 then return zero;
+
+    #if _A.basis ^ _B.basis == 0 { // all basis elements square to +-1
+        parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
+        negs :: #run (overlap >> POS) & ((1 << NEG)-1);
+        negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
+        return a.value * b.value * parity * negs_squared;
+    }
+
+    // not squaring to zero, so calculate actual square
+    res : C = ---;
+    #if DEBUG println("res : % = %", type_of(res), res);
+
+    // // default ordering from small basis number to large
+    // parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
+    // res.value = a.value * b.value * parity;
+
+    // // no basis elements square up
+    // #if overlap == 0 then return res;
+
+    // // basis elements that square to -1
+    // negs :: #run (overlap >> POS) & ((1 << NEG)-1);
+    // #if DEBUG print("negs %\n", formatInt(negs,2));
+    // #if negs {
+    //     negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
+    //     res.value *= negs_squared;
+    // }
+
+    // // the rest squares to +1
+    return res;
+}
 
 #insert -> string {
     DEBUG :: false;
@@ -97,7 +151,7 @@ e0 :: #run number(one, cast(B)0);
 
             if grade == 1 {
                 for indices
-                    print_to_builder(*builder, "e% :: #run e(%);\n", it+1, it+1);
+                    print_to_builder(*builder, "e% :: BasisNumber(%).{one};\n", it+1, 1 << it);
             } else {
                 append(*builder, "e");
                 for indices {
@@ -117,244 +171,220 @@ e0 :: #run number(one, cast(B)0);
     return builder_to_string(*builder);
 }
 
-operator - :: (a: Number) -> Number {
-    res : Number = ---;
-    res.basis = a.basis;
-    res.value = -a.value;
-    return res;
-}
-operator * :: (a: Number, b: T) -> Number #symmetric {
-    res : Number = ---;
-    res.basis = a.basis;
+// operator - :: (a: BasisNumber) -> BasisNumber {
+//     res : BasisNumber = ---;
+//     res.basis = a.basis;
+//     res.value = -a.value;
+//     return res;
+// }
+operator * :: (a: $_A/BasisNumber, b: T) -> _A #symmetric {
+    res : _A = ---;
+    // res.basis = a.basis;
     res.value = a.value * b;
     return res;
 }
 
-operator / :: (a: Number, b: T) -> Number {
-    res : Number = ---;
-    res.basis = a.basis;
-    res.value = a.value / b;
-    return res;
-}
-
-operator * :: (a: Number, b: Number) -> Number {
-    DEBUG :: true;
-    #if DEBUG print("% * %\n", fmt(a), fmt(b));
-
-    res : Number = ---;
-    res.basis = a.basis ^ b.basis;
-    #if DEBUG println("basis %", formatInt(res.basis, 2));
-    res.value = a.value * b.value * (1.0 - 2.0 * cast(float32)(a.basis > b.basis));
-
-    overlap := a.basis & b.basis;
-
-    // no basis elements square up
-    if overlap == 0 then return res;
-
-    // a basis element squares to zero
-    #if DEBUG print("overlap %\n", formatInt(overlap,2));
-    if overlap >> (POS+NEG) != 0 {
-        res.value = zero;
-        res.basis = 0;
-        return res;
-    }
-
-    // basis elements that square to -1
-    negs := (overlap >> POS) & ((1 << NEG)-1);
-    #if DEBUG print("negs %\n", formatInt(negs,2));
-    if negs {
-        res.value *= 1 - 2 * ((hamming_weight(negs)) % 2);
-    }
-
-    // the rest squares to +1
-    return res;
-}
+// operator / :: (a: BasisNumber, b: T) -> BasisNumber {
+//     res : BasisNumber = ---;
+//     res.basis = a.basis;
+//     res.value = a.value / b;
+//     return res;
+// }
 
 
 
-N_ELEMENTS :: #run powi(2, N+1);
-#if STACK_ALLOC {
-    ELEMENT_INDEX_MAP :: #run ()->[N_ELEMENTS]int {
-        res : [N_ELEMENTS]int;
-        return res;
-    }();    
-}
+// N_ELEMENTS :: #run powi(2, N+1);
+// #if STACK_ALLOC {
+//     ELEMENT_INDEX_MAP :: #run ()->[N_ELEMENTS]int {
+//         res : [N_ELEMENTS]int;
+//         return res;
+//     }();    
+// }
 
-MultiVector :: struct {
-    val: T;
-    #if STACK_ALLOC {
-        terms: [N_ELEMENTS]Number;
-    } else {
-        terms: [..]Number;
-    }
-}
-mv :: inline (nums: ..Number) -> MultiVector {
-    return mv(zero, ..nums);
-}
-mv :: (a: T, nums: ..Number) -> MultiVector {
-    res : MultiVector;
 
-    res.val = a;
+// ##     ## ##     ## ##       ######## #### ##     ## ########  ######  ########  #######  ########
+// ###   ### ##     ## ##          ##     ##  ##     ## ##       ##    ##    ##    ##     ## ##     ##
+// #### #### ##     ## ##          ##     ##  ##     ## ##       ##          ##    ##     ## ##     ##
+// ## ### ## ##     ## ##          ##     ##  ##     ## ######   ##          ##    ##     ## ########
+// ##     ## ##     ## ##          ##     ##   ##   ##  ##       ##          ##    ##     ## ##   ##
+// ##     ## ##     ## ##          ##     ##    ## ##   ##       ##    ##    ##    ##     ## ##    ##
+// ##     ##  #######  ########    ##    ####    ###    ########  ######     ##     #######  ##     ##
 
-    #if STACK_ALLOC {
-        for nums {
-            res.terms[ELEMENT_INDEX_MAP[it.basis]] = it;
-        }
-    } else {
-        for nums {
-            indx := -1;
-            for t, i: res.terms {
-                if t.basis != it.basis continue;
-                indx = i;
-                break;
-            }
+// MultiVector :: struct {
+//     val: T;
+//     #if STACK_ALLOC {
+//         terms: [N_ELEMENTS]BasisNumber;
+//     } else {
+//         terms: [..]BasisNumber;
+//     }
+// }
+// mv :: inline (nums: ..BasisNumber) -> MultiVector {
+//     return mv(zero, ..nums);
+// }
+// mv :: (a: T, nums: ..BasisNumber) -> MultiVector {
+//     res : MultiVector;
+
+//     res.val = a;
+
+//     #if STACK_ALLOC {
+//         for nums {
+//             res.terms[ELEMENT_INDEX_MAP[it.basis]] = it;
+//         }
+//     } else {
+//         for nums {
+//             indx := -1;
+//             for t, i: res.terms {
+//                 if t.basis != it.basis continue;
+//                 indx = i;
+//                 break;
+//             }
             
-            if indx != -1 {
-                res.terms[indx].value += it.value;
-                continue;
-            }
+//             if indx != -1 {
+//                 res.terms[indx].value += it.value;
+//                 continue;
+//             }
 
-            array_add(*res.terms, it);
-        }
-    }
+//             array_add(*res.terms, it);
+//         }
+//     }
     
-    return res;
-}
-fmt :: (mv: MultiVector) -> string {
-    builder: String_Builder;
+//     return res;
+// }
+// fmt :: (mv: MultiVector) -> string {
+//     builder: String_Builder;
 
-    print_to_builder(*builder, "%", mv.val);
+//     print_to_builder(*builder, "%", mv.val);
 
-    if mv.terms.count == 0 then
-        return builder_to_string(*builder);
+//     if mv.terms.count == 0 then
+//         return builder_to_string(*builder);
 
-    for mv.terms {
-        if it.value >= 0
-            print_to_builder(*builder, " + %",  fmt(it, nosign=true));
-        else 
-            print_to_builder(*builder, " - %",  fmt(it, nosign=true));
-    }
+//     for mv.terms {
+//         if it.value >= 0
+//             print_to_builder(*builder, " + %",  fmt(it, nosign=true));
+//         else 
+//             print_to_builder(*builder, " - %",  fmt(it, nosign=true));
+//     }
 
-    return builder_to_string(*builder);
-}
+//     return builder_to_string(*builder);
+// }
 
-operator - :: (a: MultiVector) -> MultiVector {
-    res : MultiVector;
-    res.val = -a.val;
-    for a.terms {
-        array_add(*res.terms, -it);
-    }
-    return res;
-}
+// operator - :: (a: MultiVector) -> MultiVector {
+//     res : MultiVector;
+//     res.val = -a.val;
+//     for a.terms {
+//         array_add(*res.terms, -it);
+//     }
+//     return res;
+// }
 
-operator + :: (a: Number, b: T) -> MultiVector #symmetric {
-    res : MultiVector;
-    res.val = b;
-    array_add(*res.terms, a);
-    return res;
-}
-operator - :: (a: Number, b: T) -> MultiVector {
-    res : MultiVector;
-    res.val = -b;
-    array_add(*res.terms, a);
-    return res;
-}
-operator - :: (b: T, a: Number) -> MultiVector {
-    res : MultiVector;
-    res.val = b;
-    array_add(*res.terms, -a);
-    return res;
-}
+// operator + :: (a: BasisNumber, b: T) -> MultiVector #symmetric {
+//     res : MultiVector;
+//     res.val = b;
+//     array_add(*res.terms, a);
+//     return res;
+// }
+// operator - :: (a: BasisNumber, b: T) -> MultiVector {
+//     res : MultiVector;
+//     res.val = -b;
+//     array_add(*res.terms, a);
+//     return res;
+// }
+// operator - :: (b: T, a: BasisNumber) -> MultiVector {
+//     res : MultiVector;
+//     res.val = b;
+//     array_add(*res.terms, -a);
+//     return res;
+// }
 
-operator + :: (a: MultiVector, b: MultiVector) -> MultiVector {
-    res : MultiVector = ---;
-    res.val = a.val + b.val;
-    res.terms = NewResizableArray(a.terms.count, Number,  false);
+// operator + :: (a: MultiVector, b: MultiVector) -> MultiVector {
+//     res : MultiVector = ---;
+//     res.val = a.val + b.val;
+//     res.terms = NewResizableArray(a.terms.count, BasisNumber,  false);
 
-    for a.terms {
-        array_add(*res.terms, it);
-    }
+//     for a.terms {
+//         array_add(*res.terms, it);
+//     }
 
-    for bt, bi: b.terms {
-        for at, ai: a.terms {
-            if at.basis == bt.basis {
-                res.terms[ai].value += bt.value;
-                continue bt;
-            }
-        }
-        // no matching term found
-        array_add(*res.terms, bt);
-    }
+//     for bt, bi: b.terms {
+//         for at, ai: a.terms {
+//             if at.basis == bt.basis {
+//                 res.terms[ai].value += bt.value;
+//                 continue bt;
+//             }
+//         }
+//         // no matching term found
+//         array_add(*res.terms, bt);
+//     }
 
-    return res;
-}
+//     return res;
+// }
 
-operator + :: (a: MultiVector, b: Number) -> MultiVector #symmetric {
-    res : MultiVector;
-    array_copy(*res.terms, a.terms);
-    res.val = a.val;
+// operator + :: (a: MultiVector, b: BasisNumber) -> MultiVector #symmetric {
+//     res : MultiVector;
+//     array_copy(*res.terms, a.terms);
+//     res.val = a.val;
 
-    found := false;
-    for a.terms {
-        if it.basis == b.basis {
-            res.terms[it_index].value += b.value;
-            found = true;
-            break;
-        }
-    }
-    if !found then array_add(*res.terms, b);
+//     found := false;
+//     for a.terms {
+//         if it.basis == b.basis {
+//             res.terms[it_index].value += b.value;
+//             found = true;
+//             break;
+//         }
+//     }
+//     if !found then array_add(*res.terms, b);
 
-    return res;
-}
-operator - :: (a: MultiVector, b: Number) -> MultiVector {
-    res : MultiVector;
-    array_copy(*res.terms, a.terms);
-    res.val = a.val;
+//     return res;
+// }
+// operator - :: (a: MultiVector, b: BasisNumber) -> MultiVector {
+//     res : MultiVector;
+//     array_copy(*res.terms, a.terms);
+//     res.val = a.val;
 
-    found := false;
-    for a.terms {
-        if it.basis == b.basis {
-            res.terms[it_index].value -= b.value;
-            found = true;
-            break;
-        }
-    }
-    if !found then array_add(*res.terms, -b);
+//     found := false;
+//     for a.terms {
+//         if it.basis == b.basis {
+//             res.terms[it_index].value -= b.value;
+//             found = true;
+//             break;
+//         }
+//     }
+//     if !found then array_add(*res.terms, -b);
 
-    return res;
-}
-operator - :: (b: Number, a: MultiVector) -> MultiVector {
-    res : MultiVector;
+//     return res;
+// }
+// operator - :: (b: BasisNumber, a: MultiVector) -> MultiVector {
+//     res : MultiVector;
 
-    for a.terms {
-        array_add(*res.terms, -it.value);
-    }
-    res.val = -a.val;
+//     for a.terms {
+//         array_add(*res.terms, -it.value);
+//     }
+//     res.val = -a.val;
 
-    found := false;
-    for a.terms {
-        if it.basis == b.basis {
-            res.terms[it_index].value += b.value;
-            found = true;
-            break;
-        }
-    }
-    if !found then array_add(*res.terms, b);
+//     found := false;
+//     for a.terms {
+//         if it.basis == b.basis {
+//             res.terms[it_index].value += b.value;
+//             found = true;
+//             break;
+//         }
+//     }
+//     if !found then array_add(*res.terms, b);
 
-    return res;
-}
+//     return res;
+// }
 
 
 
-operator * :: (a: MultiVector, b: MultiVector) -> MultiVector {
-    res : MultiVector;
-    res. val = a.val * b.val;
+// operator * :: (a: MultiVector, b: MultiVector) -> MultiVector {
+//     res : MultiVector;
+//     res. val = a.val * b.val;
 
-    for at: a.terms {
-        for bt: b.terms {
-            res += at * bt;
-        }
-    }
+//     for at: a.terms {
+//         for bt: b.terms {
+//             res += at * bt;
+//         }
+//     }
 
-    return res;
-}
+//     return res;
+// }

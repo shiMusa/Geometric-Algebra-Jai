@@ -54,3 +54,35 @@ binomial :: (from: int, choose: int) -> int {
 
     return binomial(from - 1, choose) + binomial(from - 1, choose - 1);
 }
+
+
+get_const_value :: (type: Type, name: string, $T: Type) -> (T, bool) {
+    s := cast(*Type_Info_Struct)type;
+    itype := type_info(T);
+    for s.specified_parameters {
+        // println("get_const_value: it = %, it.type.type = %, itype.type = %", it, it.type.type, itype.type);
+        if it.type.type != itype.type || it.name != name then continue;
+
+        data_segment := s.constant_storage_buffer;
+        offset := it.offset_into_constant_storage;
+        assert(offset >= 0);
+
+        pointer := cast(*T)(data_segment + offset);
+        return <<pointer, true;
+    }
+    return 0, false;
+}
+
+set_const_value :: (type: *Type_Info_Struct, name: string, value: $T) {
+    itype := type_info(T);
+    for type.specified_parameters {
+        if it.type.type != itype.type || it.name != name then continue;
+
+        data_segment := type.constant_storage_buffer;
+        offset := it.offset_into_constant_storage;
+        assert(offset >= 0);
+
+        pointer := cast(*T)(data_segment + offset);
+        <<pointer = value;
+    }
+}

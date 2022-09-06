@@ -37,6 +37,7 @@ fmt :: (n: BasisNumber, $nosign := false) -> string {
         print_to_builder(*builder, "% ", n.value);
 
     for 0..N-1 {
+        // append(*builder, "e");
         if n.basis & (1 << it) {
             print_to_builder(*builder, "e%", it+1);
         }
@@ -44,22 +45,23 @@ fmt :: (n: BasisNumber, $nosign := false) -> string {
 
     return builder_to_string(*builder);
 }
+fmt :: inline (n: T) -> string {
+    return sprint("%", n);
+}
 
-// e :: inline ($indices: ..int) -> BasisNumber($bn) #modify {
-//     bn = cast(B)0;
-//     for indices
-//         bn |= cast(B)1 << cast(B)(it-1);
-//     return true;
-// } {
-//     return BasisNumber(bn).{one};
-// }
+e0 :: BasisNumber(0).{one};
 
+
+
+basis_to_T :: inline (a: B, b: B) -> bool {
+    return (a & b) >> (POS+NEG) > 0 || a ^ b == 0;
+}
 
 // if the multiplication results in a real number (T)
 operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> T #modify {
     ba := get_const_value(_A, "basis", B);
     bb := get_const_value(_B, "basis", B);
-    return (ba & bb) >> (POS+NEG) > 0 || ba ^ bb == 0;
+    return basis_to_T(ba, bb);
 } {
     DEBUG :: false;
     #if DEBUG print("% * % -> %\n", fmt(a), fmt(b), T);
@@ -81,46 +83,43 @@ operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> T #modify {
 }
 
 // if the multiplication results in a BasisNumber
-operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> $C #modify {
-    C = _A;
+operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> BasisNumber(_A.basis ^ _B.basis)
+#modify {
     ba := get_const_value(_A, "basis", B);
     bb := get_const_value(_B, "basis", B);
-
-    if (ba & bb) >> (POS+NEG) > 0 || ba ^ bb == 0 
-        return false;
-
-    set_const_value(cast(*Type_Info_Struct)C, "basis", ba ^ bb);
-    return true;
+    return !basis_to_T(ba, bb);
 } {
-    #run assert(type_info(C).type == .STRUCT, "ERROR : no compatible multiplication found! C = %", C);
+    // #run assert(type_info(C).type == .STRUCT, "ERROR : no compatible multiplication found! C = %", C);
+    res : BasisNumber(_A.basis ^ _B.basis) = ---;
     
     DEBUG :: false;
-    #if DEBUG print("% * % -> %\n", fmt(a), fmt(b), C);
+    #if DEBUG print("% * % -> %, %\n", fmt(a), fmt(b), res, formatInt(res.basis,2));
     
     overlap :: _A.basis & _B.basis;
     #if DEBUG print("overlap %\n", formatInt(overlap,2));
     #if DEBUG println("xor: %", _A.basis ^ _B.basis);
 
-    res : C = ---;
-    #if DEBUG println("res : % = %", type_of(res), res);
 
     // default ordering from small basis number to large
     parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
     res.value = a.value * b.value * parity;
+    #if DEBUG println("res : % = %", type_of(res), res);
 
     // no basis elements square up
-    #if overlap == 0 then return res;
+    #if overlap == 0 {
+        return res;
+    } else {
+        // basis elements that square to -1
+        negs :: #run (overlap >> POS) & ((1 << NEG)-1);
+        #if DEBUG print("negs %\n", formatInt(negs,2));
+        #if negs {
+            negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
+            res.value *= negs_squared;
+        }
 
-    // basis elements that square to -1
-    negs :: #run (overlap >> POS) & ((1 << NEG)-1);
-    #if DEBUG print("negs %\n", formatInt(negs,2));
-    #if negs {
-        negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
-        res.value *= negs_squared;
+        // the rest squares to +1
+        return res;
     }
-
-    // the rest squares to +1
-    return res;
 }
 
 #insert -> string {
@@ -181,25 +180,22 @@ operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> $C #modify {
     return builder_to_string(*builder);
 }
 
-// operator - :: (a: BasisNumber) -> BasisNumber {
-//     res : BasisNumber = ---;
-//     res.basis = a.basis;
-//     res.value = -a.value;
-//     return res;
-// }
+operator - :: (a: $_A/BasisNumber) -> _A {
+    res : _A = ---;
+    res.value = -a.value;
+    return res;
+}
 operator * :: (a: $_A/BasisNumber, b: T) -> _A #symmetric {
     res : _A = ---;
-    // res.basis = a.basis;
     res.value = a.value * b;
     return res;
 }
 
-// operator / :: (a: BasisNumber, b: T) -> BasisNumber {
-//     res : BasisNumber = ---;
-//     res.basis = a.basis;
-//     res.value = a.value / b;
-//     return res;
-// }
+operator / :: (a: $_A/BasisNumber, b: T) -> _A {
+    res : _A = ---;
+    res.value = a.value / b;
+    return res;
+}
 
 
 

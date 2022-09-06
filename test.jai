@@ -5,15 +5,15 @@ main :: () {
     println("% : %", fmt(e12), formatInt(e12.basis, 2));
     println("% : %", fmt(e21), formatInt(e21.basis, 2));
 
-    // println("e0e0 %", fmt(e0*e0));
-    // println("e1e1 %", fmt(e1*e1));
-    // println("e1e2 %", fmt(e1*e2));
-    // println("e2e1 %", fmt(e2*e1));
+    println("e00 %", fmt(e0*e0));
+    println("e11 %", fmt(e1*e1));
+    println("e12 %", fmt(e1*e2));
+    println("e21 %", fmt(e2*e1));
 
     // println("hamming_weight(5) = %", hamming_weight(5));
 
-    // println("42.0 * e2 = %", fmt(42.0 * e2));
-    // println("e3 * 313.0 = %", fmt(e3 * 313.0));
+    println("42.0 * e2 = %", fmt(42.0 * e2));
+    println("e3 * 313.0 = %", fmt(e3 * 313.0));
 
     // x := mv(1.0, -42.0*e2, e3*313.0, e12 / 10.0);
     // println("x = % = %", fmt(x), x);

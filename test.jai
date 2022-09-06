@@ -1,5 +1,5 @@
 #import "Basic";
-#import,file "module.jai"(2,1,1);
+#import,file "module.jai"(3,0,1);
 
 main :: () {
     println("% : %", fmt(e12), formatInt(e12.basis, 2));

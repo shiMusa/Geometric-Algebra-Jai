@@ -55,13 +55,15 @@ fmt :: (n: BasisNumber, $nosign := false) -> string {
 // }
 
 operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> $C #modify {
-    DEBUG :: false;
+    DEBUG :: true;
     ba := get_const_value(_A, "basis", B);
     bb := get_const_value(_B, "basis", B);
-    #if DEBUG println("ba = %, bb = %", ba, bb);
-    
+    #if DEBUG println("_A = %", _A);
+    #if DEBUG println("_B = %", _B);
+    #if DEBUG println("ba = %, bb = %", formatInt(ba,2), formatInt(bb,2));
+
     overlap := ba & bb;
-    if overlap >> (POS+NEG) != 0 {
+    if overlap >> (POS+NEG) > 0 {
         C = T;
         return true;
     }
@@ -81,8 +83,9 @@ operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> $C #modify {
     // a basis element squares to zero
     overlap :: _A.basis & _B.basis;
     #if DEBUG print("overlap %\n", formatInt(overlap,2));
-    #if overlap >> (POS+NEG) != 0 then return zero;
+    #if overlap >> (POS+NEG) > 0 then return zero;
 
+    #if DEBUG println("xor: %", _A.basis ^ _B.basis);
     #if _A.basis ^ _B.basis == 0 { // all basis elements square to +-1
         parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
         negs :: #run (overlap >> POS) & ((1 << NEG)-1);
@@ -91,26 +94,31 @@ operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> $C #modify {
     }
 
     // not squaring to zero, so calculate actual square
-    res : C = ---;
-    #if DEBUG println("res : % = %", type_of(res), res);
+    #if #run type_info(C).type == .STRUCT {
+        res : C = ---;
+        #if DEBUG println("res : % = %", type_of(res), res);
 
-    // // default ordering from small basis number to large
-    // parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
-    // res.value = a.value * b.value * parity;
+        // default ordering from small basis number to large
+        parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
+        res.value = a.value * b.value * parity;
 
-    // // no basis elements square up
-    // #if overlap == 0 then return res;
+        // no basis elements square up
+        #if overlap == 0 then return res;
 
-    // // basis elements that square to -1
-    // negs :: #run (overlap >> POS) & ((1 << NEG)-1);
-    // #if DEBUG print("negs %\n", formatInt(negs,2));
-    // #if negs {
-    //     negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
-    //     res.value *= negs_squared;
-    // }
+        // basis elements that square to -1
+        negs :: #run (overlap >> POS) & ((1 << NEG)-1);
+        #if DEBUG print("negs %\n", formatInt(negs,2));
+        #if negs {
+            negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
+            res.value *= negs_squared;
+        }
 
-    // // the rest squares to +1
-    return res;
+        // the rest squares to +1
+        return res;
+    } else {
+        #assert("ERROR : no compatible multiplication found!");
+        return zero;
+    }
 }
 
 #insert -> string {

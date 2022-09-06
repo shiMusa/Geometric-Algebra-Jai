@@ -54,71 +54,73 @@ fmt :: (n: BasisNumber, $nosign := false) -> string {
 //     return BasisNumber(bn).{one};
 // }
 
-operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> $C #modify {
-    DEBUG :: true;
+
+// if the multiplication results in a real number (T)
+operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> T #modify {
     ba := get_const_value(_A, "basis", B);
     bb := get_const_value(_B, "basis", B);
-    #if DEBUG println("_A = %", _A);
-    #if DEBUG println("_B = %", _B);
-    #if DEBUG println("ba = %, bb = %", formatInt(ba,2), formatInt(bb,2));
-
-    overlap := ba & bb;
-    if overlap >> (POS+NEG) > 0 {
-        C = T;
-        return true;
-    }
-    if ba ^ bb == 0 { // all basis elements square to +-1
-        C = T;
-        return true;
-    }
-
-    C = _A;
-    set_const_value(cast(*Type_Info_Struct)C, "basis", ba ^ bb);
-    #if DEBUG print("C = %\n", C);
-    return true;
+    return (ba & bb) >> (POS+NEG) > 0 || ba ^ bb == 0;
 } {
-    DEBUG :: true;
-    #if DEBUG print("% * %\n", fmt(a), fmt(b));
+    DEBUG :: false;
+    #if DEBUG print("% * % -> %\n", fmt(a), fmt(b), T);
     
-    // a basis element squares to zero
     overlap :: _A.basis & _B.basis;
     #if DEBUG print("overlap %\n", formatInt(overlap,2));
-    #if overlap >> (POS+NEG) > 0 then return zero;
-
-    #if DEBUG println("xor: %", _A.basis ^ _B.basis);
-    #if _A.basis ^ _B.basis == 0 { // all basis elements square to +-1
+    
+    #if overlap >> (POS+NEG) > 0 {
+        // a basis element squares to zero
+        return zero;
+    } else {
+        // all basis elements square to +-1
+        #if DEBUG println("xor: %", _A.basis ^ _B.basis);
         parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
         negs :: #run (overlap >> POS) & ((1 << NEG)-1);
         negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
         return a.value * b.value * parity * negs_squared;
     }
+}
 
-    // not squaring to zero, so calculate actual square
-    #if #run type_info(C).type == .STRUCT {
-        res : C = ---;
-        #if DEBUG println("res : % = %", type_of(res), res);
+// if the multiplication results in a BasisNumber
+operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> $C #modify {
+    C = _A;
+    ba := get_const_value(_A, "basis", B);
+    bb := get_const_value(_B, "basis", B);
 
-        // default ordering from small basis number to large
-        parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
-        res.value = a.value * b.value * parity;
+    if (ba & bb) >> (POS+NEG) > 0 || ba ^ bb == 0 
+        return false;
 
-        // no basis elements square up
-        #if overlap == 0 then return res;
+    set_const_value(cast(*Type_Info_Struct)C, "basis", ba ^ bb);
+    return true;
+} {
+    #run assert(type_info(C).type == .STRUCT, "ERROR : no compatible multiplication found! C = %", C);
+    
+    DEBUG :: false;
+    #if DEBUG print("% * % -> %\n", fmt(a), fmt(b), C);
+    
+    overlap :: _A.basis & _B.basis;
+    #if DEBUG print("overlap %\n", formatInt(overlap,2));
+    #if DEBUG println("xor: %", _A.basis ^ _B.basis);
 
-        // basis elements that square to -1
-        negs :: #run (overlap >> POS) & ((1 << NEG)-1);
-        #if DEBUG print("negs %\n", formatInt(negs,2));
-        #if negs {
-            negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
-            res.value *= negs_squared;
-        }
+    res : C = ---;
+    #if DEBUG println("res : % = %", type_of(res), res);
 
-        // the rest squares to +1
-        return res;
-    } else {
-        #assert("ERROR : no compatible multiplication found!");
-        return zero;
+    // default ordering from small basis number to large
+    parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
+    res.value = a.value * b.value * parity;
+
+    // no basis elements square up
+    #if overlap == 0 then return res;
+
+    // basis elements that square to -1
+    negs :: #run (overlap >> POS) & ((1 << NEG)-1);
+    #if DEBUG print("negs %\n", formatInt(negs,2));
+    #if negs {
+        negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
+        res.value *= negs_squared;
     }
+
+    // the rest squares to +1
+    return res;
 }
 
 #insert -> string {

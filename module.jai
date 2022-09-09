@@ -23,6 +23,7 @@ N :: POS + NEG + ZER;
 BasisNumber :: struct(basis: B) {
     value: T;
 }
+BN0 :: BasisNumber(0);
 bn :: (value: T, $basis: B = 0) -> BasisNumber(basis) {
     res : BasisNumber(B) = ---;
     res.value = value;
@@ -198,14 +199,7 @@ operator / :: (a: $_A/BasisNumber, b: T) -> _A {
 }
 
 
-
-// N_ELEMENTS :: #run powi(2, N+1);
-// #if STACK_ALLOC {
-//     ELEMENT_INDEX_MAP :: #run ()->[N_ELEMENTS]int {
-//         res : [N_ELEMENTS]int;
-//         return res;
-//     }();    
-// }
+N_ELEMENTS :: #run powi(2, N+1);
 
 
 // ##     ## ##     ## ##       ######## #### ##     ## ########  ######  ########  #######  ########
@@ -216,14 +210,269 @@ operator / :: (a: $_A/BasisNumber, b: T) -> _A {
 // ##     ## ##     ## ##          ##     ##    ## ##   ##       ##    ##    ##    ##     ## ##    ##
 // ##     ##  #######  ########    ##    ####    ###    ########  ######     ##     #######  ##     ##
 
-// MultiVector :: struct {
-//     val: T;
-//     #if STACK_ALLOC {
-//         terms: [N_ELEMENTS]BasisNumber;
-//     } else {
-//         terms: [..]BasisNumber;
-//     }
+MultiVector :: struct(bases: ..B) {
+    values: [bases.count]T;
+}
+
+
+
+BasisHelper :: struct(type: Type) {
+    BN :: BasisNumber(type.basis);// #run get_basis(type);
+}
+// get_basis :: ($type: Type) -> Type {
+//     return MultiVector(type.basis);
 // }
+
+operator + :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> BasisHelper(_A).BN #modify {
+    ba := get_const_value(_A, "basis", B);
+    bb := get_const_value(_B, "basis", B);
+    return ba == bb;
+} {
+    res : BasisNumber(_A.basis) = ---;
+    res.value = a.value + b.value;
+    return res;
+}
+operator - :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> BasisHelper(_A).BN #modify {
+    ba := get_const_value(_A, "basis", B);
+    bb := get_const_value(_B, "basis", B);
+    return ba == bb;
+} {
+    res : BasisNumber(_A.basis) = ---;
+    res.value = a.value - b.value;
+    return res;
+}
+
+MultiVectorHelper :: struct(a: Type, b: Type) {
+    MV :: MultiVector(a.basis, b.basis);
+}
+
+operator + :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> MultiVectorHelper(_A,_B).MV #modify {
+    ba := get_const_value(_A, "basis", B);
+    bb := get_const_value(_B, "basis", B);
+    return ba != bb;
+} {
+    #if _A.basis < _B.basis {
+        res : MultiVector(_A.basis, _B.basis) = ---;
+        res.values[0] = a.value;
+        res.values[1] = b.value;
+    } else {
+        res : MultiVector(_B.basis, _A.basis) = ---;
+        res.values[0] = b.value;
+        res.values[1] = a.value;
+    }
+    return res;
+}
+operator - :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> MultiVectorHelper(_A,_B).MV #modify {
+    ba := get_const_value(_A, "basis", B);
+    bb := get_const_value(_B, "basis", B);
+    return ba != bb;
+} {
+    #if _A.basis < _B.basis {
+        res : MultiVector(_A.basis, _B.basis) = ---;
+        res.values[0] = a.value;
+        res.values[1] = -b.value;
+    } else {
+        res : MultiVector(_B.basis, _A.basis) = ---;
+        res.values[0] = -b.value;
+        res.values[1] = a.value;
+    }
+    return res;
+}
+
+operator + :: (a: $_A/BasisNumber, v: T) -> MultiVectorHelper(BN0, _A).MV #symmetric {
+    res : MultiVector(0, _A.basis) = ---;
+    res.values[0] = v;
+    res.values[1] = a.value;
+    return res;
+}
+operator - :: (a: $_A/BasisNumber, v: T) -> MultiVectorHelper(BN0, _A).MV {
+    res : MultiVector(0, _A.basis) = ---;
+    res.values[0] = -v;
+    res.values[1] = a.value;
+    return res;
+}
+operator - :: (v: T, a: $_A/BasisNumber) -> MultiVectorHelper(BN0, _A).MV {
+    res : MultiVector(0, _A.basis) = ---;
+    res.values[0] = v;
+    res.values[1] = -a.value;
+    return res;
+}
+
+
+BN_MV_Helper :: struct(bn: Type, mv: Type) {
+    MV :: #run combine_bases_bn_mv(bn, mv);
+}
+combine_bases_bn_mv :: ($bn: Type, $mv: Type) -> Type {
+    DEBUG :: false;
+
+    for mv.bases {
+        #if DEBUG println("checking % == %? %", it, bn.basis, it == bn.basis);
+        if it == bn.basis then return MultiVector(..mv.bases);
+    }
+
+    #if DEBUG println("no same basis found.");
+
+    b :: #run () -> [mv.bases.count+1]B {
+        res : [mv.bases.count+1]B = ---;
+
+        mv_indx := 0;
+        for res {
+            if mv_indx < mv.bases.count && mv.bases[mv_indx] < bn.basis {
+                res[it_index] = mv.bases[mv_indx];
+            } else {
+                res[it_index] = bn.basis;
+            }
+            mv_indx += 1;
+        }
+
+
+        return res;
+    }();
+    
+    #if DEBUG println("combined bases: % from % and %", b, mv.bases, bn.basis);
+    return MultiVector(..b);
+}
+
+operator + :: (a: $_A/BasisNumber, b: $_B/MultiVector) -> BN_MV_Helper(_A, _B).MV #symmetric {
+    res : BN_MV_Helper(_A, _B).MV = ---;
+    #if res.bases.count == _B.bases.count {
+        for res.bases {
+            res.values[it_index] = b.values[it_index];
+            if it == a.basis
+                res.values[it_index] += a.value;
+        }
+    } else {
+        for b.values {
+            res.values[it_index] = it;
+        }
+        res.values[res.values.count-1] = a.value;
+    }
+    return res;
+}
+operator - :: (a: $_A/BasisNumber, b: $_B/MultiVector) -> BN_MV_Helper(_A, _B).MV {
+    res : BN_MV_Helper(_A, _B).MV = ---;
+    #if res.bases.count == _B.bases.count {
+        for res.bases {
+            res.values[it_index] = -b.values[it_index];
+            if it == a.basis
+                res.values[it_index] += a.value;
+        }
+    } else {
+        for b.values {
+            res.values[it_index] = -it;
+        }
+        res.values[res.values.count-1] = a.value;
+    }
+    return res;
+}
+operator - :: (b: $_B/MultiVector, a: $_A/BasisNumber) -> BN_MV_Helper(_A, _B).MV {
+    res : BN_MV_Helper(_A, _B).MV = ---;
+    #if res.bases.count == _B.bases.count {
+        for res.bases {
+            res.values[it_index] = b.values[it_index];
+            if it == a.basis
+                res.values[it_index] -= a.value;
+        }
+    } else {
+        for b.values {
+            res.values[it_index] = it;
+        }
+        res.values[res.values.count-1] = -a.value;
+    }
+    return res;
+}
+
+
+
+
+MV_MV_Helper :: struct(a: Type, b: Type) {
+    MV :: #run combine_bases_mv_mv(a, b);
+}
+combine_bases_mv_mv :: ($atype: Type, $btype: Type) -> Type {
+    DEBUG :: false;
+
+    N_combined :: #run () -> int {
+        res := atype.bases.count;
+
+        for bb : btype.bases {
+            for ab : atype.bases {
+                if bb == ab then continue bb;
+            }
+            res += 1;
+        }
+
+        return res;
+    }();
+
+    #if DEBUG println("N_combined = % from % and %", N_combined, atype.bases, btype.bases);
+
+    b :: #run () -> [N_combined]B {
+        res : [N_combined]B = ---;
+
+        for atype.bases {
+            res[it_index] = it;
+        }
+        indx := atype.bases.count;
+        for bb: btype.bases {
+            for ab: atype.bases {
+                if bb == ab then continue bb;
+            }
+            res[indx] = bb;
+            indx += 1;
+        }
+        return res;
+    }();
+    return MultiVector(..b);
+}
+
+
+operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_Helper(_A, _B).MV {
+    res : MV_MV_Helper(_A, _B).MV;
+    // assuming the bases are sorted from small to large value
+    index_a := 0;
+    index_b := 0;
+    for res.bases {
+        while a.bases[index_a] < it && index_a < a.bases.count-1   index_a += 1;
+        while b.bases[index_b] < it && index_b < b.bases.count-1   index_b += 1;
+        if a.bases[index_a] == it res.values[it_index] += a.values[index_a];
+        if b.bases[index_b] == it res.values[it_index] += b.values[index_b];
+    }
+    return res;
+}
+operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_Helper(_A, _B).MV {
+    res : MV_MV_Helper(_A, _B).MV;
+    // assuming the bases are sorted from small to large value
+    index_a := 0;
+    index_b := 0;
+    for res.bases {
+        while a.bases[index_a] < it && index_a < a.bases.count-1   index_a += 1;
+        while b.bases[index_b] < it && index_b < b.bases.count-1   index_b += 1;
+        if a.bases[index_a] == it res.values[it_index] += a.values[index_a];
+        if b.bases[index_b] == it res.values[it_index] -= b.values[index_b];
+    }
+    return res;
+}
+
+
+
+operator + :: (a: $_A/MultiVector, b: T) -> BN_MV_Helper(BN0, _A).MV #symmetric {
+    tmp : BN0 = ---;
+    tmp.value = b;
+    return a + tmp;
+}
+operator - :: (a: $_A/MultiVector, b: T) -> BN_MV_Helper(BN0, _A).MV {
+    tmp : BN0 = ---;
+    tmp.value = -b;
+    return a + tmp;
+}
+operator - :: (b: T, a: $_A/MultiVector) -> BN_MV_Helper(BN0, _A).MV {
+    tmp : BN0 = ---;
+    tmp.value = b;
+    return tmp - a;
+}
+
+
+
 // mv :: inline (nums: ..BasisNumber) -> MultiVector {
 //     return mv(zero, ..nums);
 // }

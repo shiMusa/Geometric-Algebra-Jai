@@ -1,5 +1,5 @@
 #import "Basic";
-#import,file "module.jai"(3,0,1);
+#import,file "module.jai"(3,0,0);
 
 main :: () {
     println("% : %", fmt(e12), formatInt(e12.basis, 2));
@@ -10,11 +10,37 @@ main :: () {
     println("e12 %", fmt(e1*e2));
     println("e21 %", fmt(e2*e1));
 
-    // println("hamming_weight(5) = %", hamming_weight(5));
+    // // println("hamming_weight(5) = %", hamming_weight(5));
 
     println("42.0 * e2 = %", fmt(42.0 * e2));
     println("e3 * 313.0 = %", fmt(e3 * 313.0));
 
+
+    x := MultiVector(e1.basis, e2.basis).{.[1.0, 2.0]};
+    println("x : % = %", type_of(x), x);
+
+    y := e1 + e1;
+    println("y : % = %", type_of(y), y);
+
+    z := e1 + e2;
+    println("z : % = %", type_of(z), z);
+
+    w := 1.0 + e1;
+    println("w : % = %", type_of(w), w);
+
+    v := y + w + y;
+    println("v : % = %", type_of(v), v);
+
+    v2 := v + z;
+    println("v2 : % = %", type_of(v2), v2);
+
+    v3 := v2 - x - 42.0 + e123;
+    println("v3 : % = %", type_of(v3), v3);
+
+
+
+
+    // println("% + % = %", e1, e1, e1+e1);
     // x := mv(1.0, -42.0*e2, e3*313.0, e12 / 10.0);
     // println("x = % = %", fmt(x), x);
 

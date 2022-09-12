@@ -472,174 +472,55 @@ operator - :: (b: T, a: $_A/MultiVector) -> BN_MV_Helper(BN0, _A).MV {
 }
 
 
+//  ######   ########  #######     ########  ########   #######  ########
+// ##    ##  ##       ##     ##    ##     ## ##     ## ##     ## ##     ##
+// ##        ##       ##     ##    ##     ## ##     ## ##     ## ##     ##
+// ##   #### ######   ##     ##    ########  ########  ##     ## ##     ##
+// ##    ##  ##       ##     ##    ##        ##   ##   ##     ## ##     ##
+// ##    ##  ##       ##     ##    ##        ##    ##  ##     ## ##     ##
+//  ######   ########  #######     ##        ##     ##  #######  ########
 
-// mv :: inline (nums: ..BasisNumber) -> MultiVector {
-//     return mv(zero, ..nums);
-// }
-// mv :: (a: T, nums: ..BasisNumber) -> MultiVector {
-//     res : MultiVector;
+MV_MV_GEO_PROD_Helper :: struct(a: Type, b: Type) {
+    MV :: #run combine_bases_mv_mv_geo_prod(a, b);
+}
+combine_bases_mv_mv_geo_prod :: ($atype: Type, $btype: Type) -> Type {
+    DEBUG :: false;
 
-//     res.val = a;
+    N_combined :: #run () -> int {
+        res := atype.bases.count;
 
-//     #if STACK_ALLOC {
-//         for nums {
-//             res.terms[ELEMENT_INDEX_MAP[it.basis]] = it;
-//         }
-//     } else {
-//         for nums {
-//             indx := -1;
-//             for t, i: res.terms {
-//                 if t.basis != it.basis continue;
-//                 indx = i;
-//                 break;
-//             }
-            
-//             if indx != -1 {
-//                 res.terms[indx].value += it.value;
-//                 continue;
-//             }
+        for bb : btype.bases {
+            for ab : atype.bases {
+                if bb == ab then continue bb;
+            }
+            res += 1;
+        }
 
-//             array_add(*res.terms, it);
-//         }
-//     }
-    
-//     return res;
-// }
-// fmt :: (mv: MultiVector) -> string {
-//     builder: String_Builder;
+        return res;
+    }();
 
-//     print_to_builder(*builder, "%", mv.val);
+    #if DEBUG println("N_combined = % from % and %", N_combined, atype.bases, btype.bases);
 
-//     if mv.terms.count == 0 then
-//         return builder_to_string(*builder);
+    b :: #run () -> [N_combined]B {
+        res : [N_combined]B = ---;
 
-//     for mv.terms {
-//         if it.value >= 0
-//             print_to_builder(*builder, " + %",  fmt(it, nosign=true));
-//         else 
-//             print_to_builder(*builder, " - %",  fmt(it, nosign=true));
-//     }
+        for atype.bases {
+            res[it_index] = it;
+        }
+        indx := atype.bases.count;
+        for bb: btype.bases {
+            for ab: atype.bases {
+                if bb == ab then continue bb;
+            }
+            res[indx] = bb;
+            indx += 1;
+        }
+        return res;
+    }();
+    return MultiVector(..b);
+}
 
-//     return builder_to_string(*builder);
-// }
-
-// operator - :: (a: MultiVector) -> MultiVector {
-//     res : MultiVector;
-//     res.val = -a.val;
-//     for a.terms {
-//         array_add(*res.terms, -it);
-//     }
-//     return res;
-// }
-
-// operator + :: (a: BasisNumber, b: T) -> MultiVector #symmetric {
-//     res : MultiVector;
-//     res.val = b;
-//     array_add(*res.terms, a);
-//     return res;
-// }
-// operator - :: (a: BasisNumber, b: T) -> MultiVector {
-//     res : MultiVector;
-//     res.val = -b;
-//     array_add(*res.terms, a);
-//     return res;
-// }
-// operator - :: (b: T, a: BasisNumber) -> MultiVector {
-//     res : MultiVector;
-//     res.val = b;
-//     array_add(*res.terms, -a);
-//     return res;
-// }
-
-// operator + :: (a: MultiVector, b: MultiVector) -> MultiVector {
-//     res : MultiVector = ---;
-//     res.val = a.val + b.val;
-//     res.terms = NewResizableArray(a.terms.count, BasisNumber,  false);
-
-//     for a.terms {
-//         array_add(*res.terms, it);
-//     }
-
-//     for bt, bi: b.terms {
-//         for at, ai: a.terms {
-//             if at.basis == bt.basis {
-//                 res.terms[ai].value += bt.value;
-//                 continue bt;
-//             }
-//         }
-//         // no matching term found
-//         array_add(*res.terms, bt);
-//     }
-
-//     return res;
-// }
-
-// operator + :: (a: MultiVector, b: BasisNumber) -> MultiVector #symmetric {
-//     res : MultiVector;
-//     array_copy(*res.terms, a.terms);
-//     res.val = a.val;
-
-//     found := false;
-//     for a.terms {
-//         if it.basis == b.basis {
-//             res.terms[it_index].value += b.value;
-//             found = true;
-//             break;
-//         }
-//     }
-//     if !found then array_add(*res.terms, b);
-
-//     return res;
-// }
-// operator - :: (a: MultiVector, b: BasisNumber) -> MultiVector {
-//     res : MultiVector;
-//     array_copy(*res.terms, a.terms);
-//     res.val = a.val;
-
-//     found := false;
-//     for a.terms {
-//         if it.basis == b.basis {
-//             res.terms[it_index].value -= b.value;
-//             found = true;
-//             break;
-//         }
-//     }
-//     if !found then array_add(*res.terms, -b);
-
-//     return res;
-// }
-// operator - :: (b: BasisNumber, a: MultiVector) -> MultiVector {
-//     res : MultiVector;
-
-//     for a.terms {
-//         array_add(*res.terms, -it.value);
-//     }
-//     res.val = -a.val;
-
-//     found := false;
-//     for a.terms {
-//         if it.basis == b.basis {
-//             res.terms[it_index].value += b.value;
-//             found = true;
-//             break;
-//         }
-//     }
-//     if !found then array_add(*res.terms, b);
-
-//     return res;
-// }
-
-
-
-// operator * :: (a: MultiVector, b: MultiVector) -> MultiVector {
-//     res : MultiVector;
-//     res. val = a.val * b.val;
-
-//     for at: a.terms {
-//         for bt: b.terms {
-//             res += at * bt;
-//         }
-//     }
-
-//     return res;
-// }
+operator * :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_GEO_PROD_Helper(_A,_B).MV {
+    res : MV_MV_GEO_PROD_Helper(_A,_B).MV = ---;
+    return res;
+}

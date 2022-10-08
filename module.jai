@@ -15,7 +15,7 @@ N :: POS + NEG + ZER;
     B :: u32; 
 } else {
     B :: u64;
-    #run assert(N < 64, "Only algebras of size up to 64 are supported, but chosen %.", N);
+    #run assert(N <= 64, "Only algebras of size up to 64 are supported, but chosen %.", N);
 }
 
 #run print("Generating algebra with basis (%,%,%). Basis elements represented as %\n", POS, NEG, ZER, B);
@@ -25,18 +25,21 @@ BasisNumber :: struct(basis: B) {
 }
 BN0 :: BasisNumber(0);
 bn :: (value: T, $basis: B = 0) -> BasisNumber(basis) {
-    res : BasisNumber(B) = ---;
+    res : BasisNumber(basis) = ---;
     res.value = value;
+    return res;
 }
 fmt :: (n: BasisNumber, $nosign := false) -> string {
     builder: String_Builder;
 
     #if nosign {
         v := ifx n.value >= 0 then n.value else -n.value;
-        print_to_builder(*builder, "% ", v);
+        print_to_builder(*builder, "%", v);
     } else 
-        print_to_builder(*builder, "% ", n.value);
+        print_to_builder(*builder, "%", n.value);
 
+    #if n.basis != 0
+        append(*builder, "'");
     for 0..N-1 {
         // append(*builder, "e");
         if n.basis & (1 << it) {
@@ -212,6 +215,22 @@ N_ELEMENTS :: #run powi(2, N+1);
 
 MultiVector :: struct(bases: ..B) {
     values: [bases.count]T;
+}
+
+fmt :: (mv: $V/MultiVector) -> string {
+    builder : String_Builder;
+
+    #insert #run ()->string {
+        br : String_Builder;
+        for b, i: V.bases {
+            print_to_builder(*br, "if mv.values[%] >= 0 then append(*builder, \" +\");", i);
+            print_to_builder(*br, "else                      append(*builder, \" -\");");
+            print_to_builder(*br, "append(*builder, fmt(bn(mv.values[%], %), nosign=true));\n", i, b);
+        }
+        return builder_to_string(*br);
+    }();
+
+    return builder_to_string(*builder);
 }
 
 
@@ -409,17 +428,46 @@ combine_bases_mv_mv :: ($atype: Type, $btype: Type) -> Type {
     b :: #run () -> [N_combined]B {
         res : [N_combined]B = ---;
 
-        for atype.bases {
-            res[it_index] = it;
-        }
-        indx := atype.bases.count;
-        for bb: btype.bases {
-            for ab: atype.bases {
-                if bb == ab then continue bb;
+        a_indx := 0;
+        b_indx := 0;
+
+        for i: 0..N_combined-1 {
+            if a_indx < atype.bases.count && b_indx < btype.bases.count {
+                ab := atype.bases[a_indx];
+                bb := btype.bases[b_indx];
+                if ab < bb {
+                    res[i] = ab;
+                    a_indx += 1;
+                } else if ab > bb {
+                    res[i] = bb;
+                    b_indx += 1;
+                } else { // ab == bb
+                    res[i] = ab;
+                    a_indx += 1;
+                    b_indx += 1;
+                }
+            } else if a_indx < atype.bases.count {
+                ab := atype.bases[a_indx];
+                res[i] = ab;
+                a_indx += 1;
+            } else if b_indx < btype.bases.count {
+                bb := btype.bases[b_indx];
+                res[i] = bb;
+                b_indx += 1;
             }
-            res[indx] = bb;
-            indx += 1;
         }
+
+        // for atype.bases {
+        //     res[it_index] = it;
+        // }
+        // indx := atype.bases.count;
+        // for bb: btype.bases {
+        //     for ab: atype.bases {
+        //         if bb == ab then continue bb;
+        //     }
+        //     res[indx] = bb;
+        //     indx += 1;
+        // }
         return res;
     }();
     return MultiVector(..b);

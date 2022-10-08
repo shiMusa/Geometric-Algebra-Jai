@@ -17,25 +17,28 @@ main :: () {
 
 
     x := MultiVector(e1.basis, e2.basis).{.[1.0, 2.0]};
-    println("x : % = %", type_of(x), x);
+    println("x : % = %", type_of(x), fmt(x));
 
     y := e1 + e1;
-    println("y : % = %", type_of(y), y);
+    println("y : % = %", type_of(y), fmt(y));
 
     z := e1 + e2;
-    println("z : % = %", type_of(z), z);
+    println("z : % = %", type_of(z), fmt(z));
 
     w := 1.0 + e1;
-    println("w : % = %", type_of(w), w);
+    println("w : % = %", type_of(w), fmt(w));
 
     v := y + w + y;
-    println("v : % = %", type_of(v), v);
+    println("v : % = %", type_of(v), fmt(v));
 
     v2 := v + z;
-    println("v2 : % = %", type_of(v2), v2);
+    println("v2 : % = %", type_of(v2), fmt(v2));
 
     v3 := v2 - x - 42.0 + e123;
-    println("v3 : % = %", type_of(v3), v3);
+    println("v3 : % = %", type_of(v3), fmt(v3));
+
+    v4 := (1.0 + e123) + v3;
+    println("v4 : % = %", type_of(v4), fmt(v4));
 
 
 

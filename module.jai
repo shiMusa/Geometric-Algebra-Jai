@@ -8,6 +8,8 @@ one  :: #run cast(T)1;
 zero :: #run cast(T)0;
 
 N :: POS + NEG + ZER;
+N_ELEMENTS :: #run powi(2, N+1);
+
 #if N <= 8 {
     B :: u8;
 } else #if N <= 16 {
@@ -21,111 +23,40 @@ N :: POS + NEG + ZER;
 
 #run print("Generating algebra with basis (%,%,%). Basis elements represented as %\n", POS, NEG, ZER, B);
 
-BasisNumber :: struct(basis: B) {
-    value: T;
-}
-BN0 :: BasisNumber(0);
-bn :: (value: T, $basis: B = 0) -> BasisNumber(basis) {
-    res : BasisNumber(basis) = ---;
-    res.value = value;
-    return res;
-}
-fmt :: (n: BasisNumber, $nosign := false) -> string {
+
+fmt :: (n: B) -> string {
     builder: String_Builder;
 
-    #if nosign {
-        v := ifx n.value >= 0 then n.value else -n.value;
-        print_to_builder(*builder, "%", v);
-    } else 
-        print_to_builder(*builder, "%", n.value);
+    if n == 0
+        return "";
 
-    #if n.basis != 0
-        append(*builder, "'");
-    for 0..N-1 {
-        // append(*builder, "e");
-        if n.basis & (1 << it) {
-            print_to_builder(*builder, "e%", it+1);
-        }
+    indx := 1;
+    x := n;
+    while x > 0 {
+        if x & 1
+            print_to_builder(*builder, "e%", indx);
+        x = x >> 1;
+        indx += 1;
     }
 
     return builder_to_string(*builder);
 }
-fmt :: inline (n: T) -> string {
-    return sprint("%", n);
+
+
+
+// ##     ## ##     ## ##       ######## #### ##     ## ########  ######  ########  #######  ########
+// ###   ### ##     ## ##          ##     ##  ##     ## ##       ##    ##    ##    ##     ## ##     ##
+// #### #### ##     ## ##          ##     ##  ##     ## ##       ##          ##    ##     ## ##     ##
+// ## ### ## ##     ## ##          ##     ##  ##     ## ######   ##          ##    ##     ## ########
+// ##     ## ##     ## ##          ##     ##   ##   ##  ##       ##          ##    ##     ## ##   ##
+// ##     ## ##     ## ##          ##     ##    ## ##   ##       ##    ##    ##    ##     ## ##    ##
+// ##     ##  #######  ########    ##    ####    ###    ########  ######     ##     #######  ##     ##
+
+MultiVector :: struct(bases: ..B) {
+    values: [bases.count]T;
 }
 
-e0 :: BasisNumber(0).{one};
-
-
-
-basis_to_T :: inline (a: B, b: B) -> bool {
-    return (a & b) >> (POS+NEG) > 0 || a ^ b == 0;
-}
-
-// if the multiplication results in a real number (T)
-operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> T #modify {
-    ba := get_const_value(_A, "basis", B);
-    bb := get_const_value(_B, "basis", B);
-    return basis_to_T(ba, bb);
-} {
-    DEBUG :: false;
-    #if DEBUG print("% * % -> %\n", fmt(a), fmt(b), T);
-    
-    overlap :: _A.basis & _B.basis;
-    #if DEBUG print("overlap %\n", formatInt(overlap,2));
-    
-    #if overlap >> (POS+NEG) > 0 {
-        // a basis element squares to zero
-        return zero;
-    } else {
-        // all basis elements square to +-1
-        #if DEBUG println("xor: %", _A.basis ^ _B.basis);
-        parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
-        negs :: #run (overlap >> POS) & ((1 << NEG)-1);
-        negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
-        return a.value * b.value * parity * negs_squared;
-    }
-}
-
-// if the multiplication results in a BasisNumber
-operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> BasisNumber(_A.basis ^ _B.basis)
-#modify {
-    ba := get_const_value(_A, "basis", B);
-    bb := get_const_value(_B, "basis", B);
-    return !basis_to_T(ba, bb);
-} {
-    // #run assert(type_info(C).type == .STRUCT, "ERROR : no compatible multiplication found! C = %", C);
-    res : BasisNumber(_A.basis ^ _B.basis) = ---;
-    
-    DEBUG :: false;
-    #if DEBUG print("% * % -> %, %\n", fmt(a), fmt(b), res, formatInt(res.basis,2));
-    
-    overlap :: _A.basis & _B.basis;
-    #if DEBUG print("overlap %\n", formatInt(overlap,2));
-    #if DEBUG println("xor: %", _A.basis ^ _B.basis);
-
-
-    // default ordering from small basis number to large
-    parity :: #run one - cast(T)2 * cast(T)(_A.basis > _B.basis);
-    res.value = a.value * b.value * parity;
-    #if DEBUG println("res : % = %", type_of(res), res);
-
-    // no basis elements square up
-    #if overlap == 0 {
-        return res;
-    } else {
-        // basis elements that square to -1
-        negs :: #run (overlap >> POS) & ((1 << NEG)-1);
-        #if DEBUG print("negs %\n", formatInt(negs,2));
-        #if negs {
-            negs_squared :: #run 1 - 2 * ((hamming_weight(negs)) % 2);
-            res.value *= negs_squared;
-        }
-
-        // the rest squares to +1
-        return res;
-    }
-}
+e0 :: MultiVector(0).{.[one]};
 
 #insert -> string {
     DEBUG :: false;
@@ -165,7 +96,7 @@ operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> BasisNumber(_A.basis ^
 
             if grade == 1 {
                 for indices
-                    print_to_builder(*builder, "e% :: BasisNumber(%).{one};\n", it+1, 1 << it);
+                    print_to_builder(*builder, "e% :: MultiVector(%).{.[one]};\n", it+1, 1 << it);
             } else {
                 append(*builder, "e");
                 for indices {
@@ -185,227 +116,17 @@ operator * :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> BasisNumber(_A.basis ^
     return builder_to_string(*builder);
 }
 
-operator - :: (a: $_A/BasisNumber) -> _A {
-    res : _A = ---;
-    res.value = -a.value;
-    return res;
-}
-operator * :: (a: $_A/BasisNumber, b: T) -> _A #symmetric {
-    res : _A = ---;
-    res.value = a.value * b;
-    return res;
-}
-
-operator / :: (a: $_A/BasisNumber, b: T) -> _A {
-    res : _A = ---;
-    res.value = a.value / b;
-    return res;
-}
-
-
-N_ELEMENTS :: #run powi(2, N+1);
-
-
-// ##     ## ##     ## ##       ######## #### ##     ## ########  ######  ########  #######  ########
-// ###   ### ##     ## ##          ##     ##  ##     ## ##       ##    ##    ##    ##     ## ##     ##
-// #### #### ##     ## ##          ##     ##  ##     ## ##       ##          ##    ##     ## ##     ##
-// ## ### ## ##     ## ##          ##     ##  ##     ## ######   ##          ##    ##     ## ########
-// ##     ## ##     ## ##          ##     ##   ##   ##  ##       ##          ##    ##     ## ##   ##
-// ##     ## ##     ## ##          ##     ##    ## ##   ##       ##    ##    ##    ##     ## ##    ##
-// ##     ##  #######  ########    ##    ####    ###    ########  ######     ##     #######  ##     ##
-
-MultiVector :: struct(bases: ..B) {
-    values: [bases.count]T;
-}
-
 fmt :: (mv: $V/MultiVector) -> string {
     builder : String_Builder;
 
-    #insert #run ()->string {
-        br : String_Builder;
-        for b, i: V.bases {
-            if i > 0 {
-                print_to_builder(*br, "if mv.values[%] >= 0 append(*builder, \" +\");\n", i);
-                print_to_builder(*br, "else                 append(*builder, \" -\");\n");
-            } else {
-                print_to_builder(*br, "if mv.values[%] < 0 append(*builder, \"-\");\n", i);
-            }
-            print_to_builder(*br, "append(*builder, fmt(bn(mv.values[%], %), nosign=true));\n", i, b);
-        }
-        return builder_to_string(*br);
-    }();
+    for b, i: V.bases {
+        if i > 0 && mv.values[i] > 0
+            append(*builder, " +");
+        print_to_builder(*builder, " %'%", mv.values[i], fmt(b));
+    }
 
     return builder_to_string(*builder);
 }
-
-
-
-BasisHelper :: struct(type: Type) {
-    BN :: BasisNumber(type.basis);// #run get_basis(type);
-}
-// get_basis :: ($type: Type) -> Type {
-//     return MultiVector(type.basis);
-// }
-
-operator + :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> BasisHelper(_A).BN #modify {
-    ba := get_const_value(_A, "basis", B);
-    bb := get_const_value(_B, "basis", B);
-    return ba == bb;
-} {
-    res : BasisNumber(_A.basis) = ---;
-    res.value = a.value + b.value;
-    return res;
-}
-operator - :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> BasisHelper(_A).BN #modify {
-    ba := get_const_value(_A, "basis", B);
-    bb := get_const_value(_B, "basis", B);
-    return ba == bb;
-} {
-    res : BasisNumber(_A.basis) = ---;
-    res.value = a.value - b.value;
-    return res;
-}
-
-MultiVectorHelper :: struct(a: Type, b: Type) {
-    MV :: MultiVector(a.basis, b.basis);
-}
-
-operator + :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> MultiVectorHelper(_A,_B).MV #modify {
-    ba := get_const_value(_A, "basis", B);
-    bb := get_const_value(_B, "basis", B);
-    return ba != bb;
-} {
-    #if _A.basis < _B.basis {
-        res : MultiVector(_A.basis, _B.basis) = ---;
-        res.values[0] = a.value;
-        res.values[1] = b.value;
-    } else {
-        res : MultiVector(_B.basis, _A.basis) = ---;
-        res.values[0] = b.value;
-        res.values[1] = a.value;
-    }
-    return res;
-}
-operator - :: (a: $_A/BasisNumber, b: $_B/BasisNumber) -> MultiVectorHelper(_A,_B).MV #modify {
-    ba := get_const_value(_A, "basis", B);
-    bb := get_const_value(_B, "basis", B);
-    return ba != bb;
-} {
-    #if _A.basis < _B.basis {
-        res : MultiVector(_A.basis, _B.basis) = ---;
-        res.values[0] = a.value;
-        res.values[1] = -b.value;
-    } else {
-        res : MultiVector(_B.basis, _A.basis) = ---;
-        res.values[0] = -b.value;
-        res.values[1] = a.value;
-    }
-    return res;
-}
-
-operator + :: (a: $_A/BasisNumber, v: T) -> MultiVectorHelper(BN0, _A).MV #symmetric {
-    res : MultiVector(0, _A.basis) = ---;
-    res.values[0] = v;
-    res.values[1] = a.value;
-    return res;
-}
-operator - :: (a: $_A/BasisNumber, v: T) -> MultiVectorHelper(BN0, _A).MV {
-    res : MultiVector(0, _A.basis) = ---;
-    res.values[0] = -v;
-    res.values[1] = a.value;
-    return res;
-}
-operator - :: (v: T, a: $_A/BasisNumber) -> MultiVectorHelper(BN0, _A).MV {
-    res : MultiVector(0, _A.basis) = ---;
-    res.values[0] = v;
-    res.values[1] = -a.value;
-    return res;
-}
-
-
-BN_MV_Helper :: struct(bn: Type, mv: Type) {
-    MV :: #run combine_bases_bn_mv(bn, mv);
-}
-combine_bases_bn_mv :: ($bn: Type, $mv: Type) -> Type {
-    DEBUG :: false;
-
-    for mv.bases {
-        #if DEBUG println("checking % == %? %", it, bn.basis, it == bn.basis);
-        if it == bn.basis then return MultiVector(..mv.bases);
-    }
-
-    #if DEBUG println("no same basis found.");
-
-    b :: #run () -> [mv.bases.count+1]B {
-        res : [mv.bases.count+1]B = ---;
-
-        mv_indx := 0;
-        for res {
-            if mv_indx < mv.bases.count && mv.bases[mv_indx] < bn.basis {
-                res[it_index] = mv.bases[mv_indx];
-            } else {
-                res[it_index] = bn.basis;
-            }
-            mv_indx += 1;
-        }
-
-
-        return res;
-    }();
-    
-    #if DEBUG println("combined bases: % from % and %", b, mv.bases, bn.basis);
-    return MultiVector(..b);
-}
-
-operator + :: (a: $_A/BasisNumber, b: $_B/MultiVector) -> BN_MV_Helper(_A, _B).MV #symmetric {
-    res : BN_MV_Helper(_A, _B).MV = ---;
-    #if res.bases.count == _B.bases.count {
-        for res.bases {
-            res.values[it_index] = b.values[it_index];
-            if it == a.basis
-                res.values[it_index] += a.value;
-        }
-    } else {
-        for b.values {
-            res.values[it_index] = it;
-        }
-        res.values[res.values.count-1] = a.value;
-    }
-    return res;
-}
-operator - :: (a: $_A/BasisNumber, b: $_B/MultiVector) -> BN_MV_Helper(_A, _B).MV {
-    res : BN_MV_Helper(_A, _B).MV = ---;
-    #if res.bases.count == _B.bases.count {
-        for res.bases {
-            res.values[it_index] = -b.values[it_index];
-            if it == a.basis
-                res.values[it_index] += a.value;
-        }
-    } else {
-        for b.values {
-            res.values[it_index] = -it;
-        }
-        res.values[res.values.count-1] = a.value;
-    }
-    return res;
-}
-operator - :: (b: $_B/MultiVector, a: $_A/BasisNumber) -> BN_MV_Helper(_A, _B).MV {
-    res : BN_MV_Helper(_A, _B).MV = ---;
-    #if res.bases.count == _B.bases.count {
-        for res.bases {
-            res.values[it_index] = b.values[it_index];
-            if it == a.basis
-                res.values[it_index] -= a.value;
-        }
-    } else {
-        for b.values {
-            res.values[it_index] = it;
-        }
-        res.values[res.values.count-1] = -a.value;
-    }
-    return res;
-}
-
 
 
 
@@ -496,20 +217,36 @@ operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_Helper(_A, _B).M
 
 
 
-operator + :: (a: $_A/MultiVector, b: T) -> BN_MV_Helper(BN0, _A).MV #symmetric {
-    tmp : BN0 = ---;
-    tmp.value = b;
+operator + :: (a: $_A/MultiVector, b: T) -> MV_MV_Helper(MultiVector(0), _A).MV #symmetric {
+    tmp : MultiVector(0) = ---;
+    tmp.values[0] = b;
     return a + tmp;
 }
-operator - :: (a: $_A/MultiVector, b: T) -> BN_MV_Helper(BN0, _A).MV {
-    tmp : BN0 = ---;
-    tmp.value = -b;
-    return a + tmp;
+operator - :: (a: $_A/MultiVector, b: T) -> MV_MV_Helper(MultiVector(0), _A).MV {
+    tmp : MultiVector(0) = ---;
+    tmp.values[0] = b;
+    return a - tmp;
 }
-operator - :: (b: T, a: $_A/MultiVector) -> BN_MV_Helper(BN0, _A).MV {
-    tmp : BN0 = ---;
-    tmp.value = b;
+operator - :: (b: T, a: $_A/MultiVector) -> MV_MV_Helper(MultiVector(0), _A).MV {
+    tmp : MultiVector(0) = ---;
+    tmp.values[0] = b;
     return tmp - a;
+}
+
+
+operator * :: (a: $_A/MultiVector, b: T) -> _A #symmetric {
+    res : _A = ---;
+    for a.values {
+        res.values[it_index] = b * it;
+    }
+    return res;
+}
+operator / :: (a: $_A/MultiVector, b: T) -> _A {
+    res : _A = ---;
+    for a.values {
+        res.values[it_index] = b / it;
+    }
+    return res;
 }
 
 
@@ -564,33 +301,6 @@ combine_bases_mv_mv_geo_prod :: ($atype: Type, $btype: Type) -> Type {
             res[it_index] = it;
         }
 
-        // a_indx := 0;
-        // b_indx := 0;
-
-        // for i: 0..N_combined-1 {
-        //     if a_indx < atype.bases.count && b_indx < btype.bases.count {
-        //         ab := atype.bases[a_indx];
-        //         bb := btype.bases[b_indx];
-        //         if ab < bb {
-        //             res[i] = ab;
-        //             a_indx += 1;
-        //         } else if ab > bb {
-        //             res[i] = bb;
-        //             b_indx += 1;
-        //         } else { // ab == bb
-        //             a_indx += 1;
-        //             b_indx += 1;
-        //         }
-        //     } else if a_indx < atype.bases.count {
-        //         ab := atype.bases[a_indx];
-        //         res[i] = ab;
-        //         a_indx += 1;
-        //     } else if b_indx < btype.bases.count {
-        //         bb := btype.bases[b_indx];
-        //         res[i] = bb;
-        //         b_indx += 1;
-        //     }
-        // }
         return res;
     }();
     #if DEBUG println("combined bases %", b);
@@ -623,7 +333,18 @@ operator * :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_GEO_PROD_Helper(
                 } else {
                     #if DEBUG println("bases % and %", ab, bb);
                     overlap  := ab & bb;
-                    #if DEBUG println("overlap %", overlap);
+                    combined := ab ^ bb;
+                    #if DEBUG println("overlap %, combined %", overlap, combined);
+                    
+                    if overlap == 0 {
+                        for res.bases {
+                            if it == combined {
+                                print_to_builder(*builder, "res.values[%] += a.values[%] * b.values[%];\n", it_index, ai, bi);
+                                break;
+                            }
+                        }
+                        continue;
+                    }
 
                     zeros := overlap & ((1 << ZER) - 1);
                     if zeros > 0 then continue;
@@ -631,11 +352,10 @@ operator * :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_GEO_PROD_Helper(
 
                     hw_negs := hamming_weight(overlap >> ZER & ((1 << NEG)-1));
 
-                    combined := ab ^ bb;
                     for res.bases {
                         #if DEBUG println("checking res basis %", it);
                         if it == combined {
-                            if DEBUG println("found basis % in res at index %", it, it_index);
+                            #if DEBUG println("found basis % in res at index %", it, it_index);
                             if hw_negs % 2 == 0
                                 print_to_builder(*builder, "res.values[%] += a.values[%] * b.values[%];\n", it_index, ai, bi);
                             else

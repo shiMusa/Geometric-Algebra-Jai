@@ -2,9 +2,6 @@
 #import,file "module.jai"(1,3,0);
 
 main :: () {
-    println("% : %", fmt(e12), formatInt(e12.basis, 2));
-    println("% : %", fmt(e21), formatInt(e21.basis, 2));
-
     println("e00 %", fmt(e0*e0));
     println("e11 %", fmt(e1*e1));
     println("e12 %", fmt(e1*e2));
@@ -16,7 +13,7 @@ main :: () {
     println("e3 * 313.0 = %", fmt(e3 * 313.0));
 
 
-    x := MultiVector(e1.basis, e2.basis).{.[1.0, 2.0]};
+    x := MultiVector(1,2).{.[1.0, 2.0]};
 
 
     mv_print :: (name: string, mv: $V/MultiVector) {

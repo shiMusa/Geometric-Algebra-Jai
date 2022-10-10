@@ -1,5 +1,5 @@
 #import "Basic";
-#import,file "module.jai"(3,0,0);
+#import,file "module.jai"(1,3,0);
 
 main :: () {
     println("% : %", fmt(e12), formatInt(e12.basis, 2));
@@ -17,6 +17,12 @@ main :: () {
 
 
     x := MultiVector(e1.basis, e2.basis).{.[1.0, 2.0]};
+
+
+    mv_print :: (name: string, mv: $V/MultiVector) {
+        println("% : % = %", name, type_of(mv), fmt(mv));
+    }
+
     println("x : % = %", type_of(x), fmt(x));
 
     y := e1 + e1;
@@ -40,30 +46,9 @@ main :: () {
     v4 := (1.0 + e123) + v3;
     println("v4 : % = %", type_of(v4), fmt(v4));
 
+    k0 := v4 * v3;
+    mv_print("k0", k0);
 
-
-
-    // println("% + % = %", e1, e1, e1+e1);
-    // x := mv(1.0, -42.0*e2, e3*313.0, e12 / 10.0);
-    // println("x = % = %", fmt(x), x);
-
-    // x = x + x;
-    // println("x = %", fmt(x));
-
-    // x = x + 100.0*e2 - 1.0*e23;
-    // println("x = %", fmt(x));
-    // println("-x = %", fmt(-x));
-
-    // y := 3.0 - 4.0 * e1 + 0.123 * e13 + 0.321 * e234;
-    // println("e1   = % = %", e1  , fmt(e1  ));
-    // println("e13  = % = %", e13 , fmt(e13 ));
-    // println("e234 = % = %", e234, fmt(e234));
-    // println("y = % = %", fmt(y), y);
-    // println("x*y = %", fmt(x*y));
-    // println("y*x = %", fmt(y*x));
-    // println("x*x = %", fmt(x*x));
-    // println("y*y = %", fmt(y*y));
-
-
-    // println("N_ELEMENTS = %", N_ELEMENTS);
+    k1 := v3 * w;
+    mv_print("k1", k1);
 }

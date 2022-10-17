@@ -57,6 +57,8 @@ MultiVector :: struct(bases: ..B) {
 }
 
 e0 :: MultiVector(0).{.[one]};
+eI :: MultiVector(1<<N - 1).{.[one]};
+#run println("eI : % = %", type_of(eI), fmt(eI));
 
 #insert -> string {
     builder : String_Builder;
@@ -67,6 +69,7 @@ e0 :: MultiVector(0).{.[one]};
     }
     append(*builder, ");\n");
 
+    // * full mv zero
     append(*builder, "MV_ZERO :: FULL_MV.{.[zero");
     for i: 1..1<<N-1 {
         append(*builder, ", zero");
@@ -156,21 +159,56 @@ fmt :: (mv: $V/MultiVector) -> string {
 // *  ######  ######## ######## ########  ######     ##
 
 
-select :: inline (a: $_A/MultiVector, $$b: B) -> T {
-    #if is_constant(b) {
-        #insert #run () -> string {
-            for ab, ai: a.bases {
-                if ab == b
-                    return sprint("return a.values[%];\n", ai);
-            }    
-            return "return zero;\n";
-        }();
-    } else {
-        for ab, ai: a.bases {
-            if ab == b return a.values[ai];
+MV_SELECT_Helper :: struct(a: Type, grade: int) {
+    MV :: #run mv_select(a,grade);
+}
+mv_select :: ($a: Type, $grade: int) -> Type {
+    N_select :: #run () -> int {
+        res := 0;
+        for a.bases {
+            if hamming_weight(it) == grade then res += 1;
         }
-        return zero;
+        return res;
+    }();
+
+    #if N_select == 0 {
+        return MultiVector(0);
+    } else {
+        b :: #run () -> [N_select]B {
+            res : [N_select]B = ---;
+            indx := 0;
+            for a.bases {
+                if hamming_weight(it) == grade {
+                    res[indx] = it;
+                    indx += 1;
+                }
+            } 
+            return res;
+        }();
+
+        return MultiVector(..b);
     }
+}
+
+select :: inline (a: $_A/MultiVector, $grade: int) -> MV_SELECT_Helper(_A, grade).MV {
+    res : MV_SELECT_Helper(_A, grade).MV = ---;
+
+    #insert #run () -> string {
+        builder : String_Builder;
+        indx := 0;
+        for a.bases {
+            if hamming_weight(it) == grade {
+                print_to_builder(*builder, "res.values[%] = a.values[%];\n", indx, it_index);
+                indx += 1;
+            }
+        }
+        if indx == 0 {  // * no matching grade found
+            append(*builder, "res.values[0] = 0;\n");
+        }
+        return builder_to_string(*builder);
+    }();
+
+    return res;
 }
 
 
@@ -380,6 +418,81 @@ reverse :: (a: $_A/MultiVector) -> _A {
         }
         return builder_to_string(*builder);
     }();
+    return res;
+}
+
+
+// * ########   #######  ##          ###    ########
+// * ##     ## ##     ## ##         ## ##   ##     ##
+// * ##     ## ##     ## ##        ##   ##  ##     ##
+// * ########  ##     ## ##       ##     ## ########
+// * ##        ##     ## ##       ######### ##   ##
+// * ##        ##     ## ##       ##     ## ##    ##
+// * ##         #######  ######## ##     ## ##     ##
+
+MV_POLAR_Helper :: struct(a: Type) {
+    MV :: #run mv_polar(a);
+}
+mv_polar :: ($a: Type) -> Type {
+    x : a;
+    return type_of(x * eI);
+}
+polar :: inline (a: $_A/MultiVector) -> MV_POLAR_Helper(_A).MV {
+    return a * eI;
+}
+
+
+// *  #######  ##     ## ######## ######## ########
+// * ##     ## ##     ##    ##    ##       ##     ##
+// * ##     ## ##     ##    ##    ##       ##     ##
+// * ##     ## ##     ##    ##    ######   ########
+// * ##     ## ##     ##    ##    ##       ##   ##
+// * ##     ## ##     ##    ##    ##       ##    ##
+// *  #######   #######     ##    ######## ##     ##
+
+MV_MV_OUTER_Helper :: struct(a: Type, b: Type) {
+    MV :: #run mv_mv_outer(a,b);
+}
+mv_mv_outer :: ($a: Type, $b: Type) -> Type {
+
+    N_grade :: #run () -> int {
+        res := 0;
+        x : a = ---;
+        y : b = ---;
+        z := x * y;
+        hw_max := hamming_weight(z.bases[z.bases.count-1]);
+        for z.bases {
+            if hamming_weight(it) == hw_max then res += 1;
+        }
+        return res;
+    }();
+
+    basis :: #run () -> [N_grade]B {
+        res : [N_grade]B = ---;
+        indx := 0;
+
+        x : a = ---;
+        y : b = ---;
+        z := x * y;
+
+        hw_max := hamming_weight(z.bases[z.bases.count-1]);
+        for z.bases {
+            if hamming_weight(it) == hw_max {
+                res[indx] = it;
+                indx += 1;
+            }
+        }
+
+        return res;
+    }();
+
+    return MultiVector(..basis);
+}
+
+
+meet :: outer;
+outer :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_OUTER_Helper(_A, _B).MV {
+    res : MV_MV_OUTER_Helper(_A, _B).MV = ---;
     return res;
 }
 

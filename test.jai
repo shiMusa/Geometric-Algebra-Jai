@@ -1,5 +1,5 @@
 #import "Basic";
-#import,file "module.jai"(1,2,0);
+#import,file "module.jai"(1,1,1);
 
 main :: () {
     println("e00 %", fmt(e0*e0));
@@ -62,11 +62,14 @@ main :: () {
     v3_dual_reverse := reverse(v3_dual);
     mv_print("v3_dual_reverse", v3_dual_reverse);
 
-    println("select 7 of v3_dual_reverse: %", select(v3_dual_reverse, 7));
-    println("select 2 of v3_dual_reverse: %", select(v3_dual_reverse, 2));
+    println("select 0 of v3_dual_reverse: %", fmt(select(v3_dual_reverse, 0)));
+    println("select 1 of v3_dual_reverse: %", fmt(select(v3_dual_reverse, 1)));
+    println("select 2 of v3_dual_reverse: %", fmt(select(v3_dual_reverse, 2)));
+    println("select 3 of v3_dual_reverse: %", fmt(select(v3_dual_reverse, 3)));
 
-    // mv_print("k2", k1 * k1);
-    // mv_print("k2", k1 * k1 * k1);
-    // mv_print("k2", k1 * k1 * k1 * k1);
-    // mv_print("k2", k1 * k1 * k1 * k1 * k1);
+    println("polar of v3: %", fmt(polar(v3)));
+
+    println("meet of v3 and k0: %", fmt(meet(v3, k0)));
+    println("meet of x and w: %", fmt(meet(x, w)));
+    println("meet of x and e3: %", fmt(meet(x, e3)));
 }

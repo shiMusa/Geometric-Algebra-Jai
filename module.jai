@@ -321,6 +321,33 @@ dual :: (a: $_A/MultiVector) -> MV_DUAL_Helper(_A).MV {
 }
 
 
+// * ########  ######## ##     ## ######## ########   ######  ########
+// * ##     ## ##       ##     ## ##       ##     ## ##    ## ##
+// * ##     ## ##       ##     ## ##       ##     ## ##       ##
+// * ########  ######   ##     ## ######   ########   ######  ######
+// * ##   ##   ##        ##   ##  ##       ##   ##         ## ##
+// * ##    ##  ##         ## ##   ##       ##    ##  ##    ## ##
+// * ##     ## ########    ###    ######## ##     ##  ######  ########
+
+
+reverse :: (a: $_A/MultiVector) -> _A {
+    res := a;
+    #insert #run () -> string {
+        builder : String_Builder;
+        for ab, ai: a.bases {
+            hw := hamming_weight(ab);
+            if hw < 2 continue;
+            binom := binomial(hw, 2);
+            if binom % 2 == 1 {
+                print_to_builder(*builder, "res.values[%] = -res.values[%];\n", ai, ai);
+            }
+        }
+        return builder_to_string(*builder);
+    }();
+    return res;
+}
+
+
 // *  ######   ########  #######     ########  ########   #######  ########
 // * ##    ##  ##       ##     ##    ##     ## ##     ## ##     ## ##     ##
 // * ##        ##       ##     ##    ##     ## ##     ## ##     ## ##     ##

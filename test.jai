@@ -59,6 +59,9 @@ main :: () {
     v3_dual := dual(v3);
     mv_print("v3_dual", v3_dual);
 
+    v3_dual_reverse := reverse(v3_dual);
+    mv_print("v3_dual_reverse", v3_dual_reverse);
+
     // mv_print("k2", k1 * k1);
     // mv_print("k2", k1 * k1 * k1);
     // mv_print("k2", k1 * k1 * k1 * k1);

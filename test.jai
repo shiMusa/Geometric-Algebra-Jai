@@ -62,6 +62,9 @@ main :: () {
     v3_dual_reverse := reverse(v3_dual);
     mv_print("v3_dual_reverse", v3_dual_reverse);
 
+    println("select 7 of v3_dual_reverse: %", select(v3_dual_reverse, 7));
+    println("select 2 of v3_dual_reverse: %", select(v3_dual_reverse, 2));
+
     // mv_print("k2", k1 * k1);
     // mv_print("k2", k1 * k1 * k1);
     // mv_print("k2", k1 * k1 * k1 * k1);

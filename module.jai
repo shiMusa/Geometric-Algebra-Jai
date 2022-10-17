@@ -4,6 +4,8 @@
 #load "utils.jai";
 #module_parameters(POS: int, NEG: int, ZER: int, T := float32, STACK_ALLOC := false);
 
+#if POS == 2 && NEG == 0 && ZER == 1 #load "pga2d.jai";
+
 one  :: #run cast(T)1;
 zero :: #run cast(T)0;
 
@@ -145,6 +147,40 @@ fmt :: (mv: $V/MultiVector) -> string {
 }
 
 
+// *  ######  ######## ##       ########  ######  ########
+// * ##    ## ##       ##       ##       ##    ##    ##
+// * ##       ##       ##       ##       ##          ##
+// *  ######  ######   ##       ######   ##          ##
+// *       ## ##       ##       ##       ##          ##
+// * ##    ## ##       ##       ##       ##    ##    ##
+// *  ######  ######## ######## ########  ######     ##
+
+
+select :: inline (a: $_A/MultiVector, $$b: B) -> T {
+    #if is_constant(b) {
+        #insert #run () -> string {
+            for ab, ai: a.bases {
+                if ab == b
+                    return sprint("return a.values[%];\n", ai);
+            }    
+            return "return zero;\n";
+        }();
+    } else {
+        for ab, ai: a.bases {
+            if ab == b return a.values[ai];
+        }
+        return zero;
+    }
+}
+
+
+// *              ##
+// *   ##        ##
+// *   ##       ##
+// * ######    ##    #######
+// *   ##     ##
+// *   ##    ##
+// *        ##
 
 MV_MV_ADD_Helper :: struct(a: Type, b: Type) {
     MV :: #run combine_bases_mv_mv_add(a, b);

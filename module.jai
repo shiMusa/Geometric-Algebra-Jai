@@ -42,21 +42,37 @@ fmt :: (n: B) -> string {
     return builder_to_string(*builder);
 }
 
-
-
-// ##     ## ##     ## ##       ######## #### ##     ## ########  ######  ########  #######  ########
-// ###   ### ##     ## ##          ##     ##  ##     ## ##       ##    ##    ##    ##     ## ##     ##
-// #### #### ##     ## ##          ##     ##  ##     ## ##       ##          ##    ##     ## ##     ##
-// ## ### ## ##     ## ##          ##     ##  ##     ## ######   ##          ##    ##     ## ########
-// ##     ## ##     ## ##          ##     ##   ##   ##  ##       ##          ##    ##     ## ##   ##
-// ##     ## ##     ## ##          ##     ##    ## ##   ##       ##    ##    ##    ##     ## ##    ##
-// ##     ##  #######  ########    ##    ####    ###    ########  ######     ##     #######  ##     ##
+// *  ##     ## ##     ## ##       ######## #### ##     ## ########  ######  ########  #######  ######## 
+// *  ###   ### ##     ## ##          ##     ##  ##     ## ##       ##    ##    ##    ##     ## ##     ## 
+// *  #### #### ##     ## ##          ##     ##  ##     ## ##       ##          ##    ##     ## ##     ## 
+// *  ## ### ## ##     ## ##          ##     ##  ##     ## ######   ##          ##    ##     ## ######## 
+// *  ##     ## ##     ## ##          ##     ##   ##   ##  ##       ##          ##    ##     ## ##   ## 
+// *  ##     ## ##     ## ##          ##     ##    ## ##   ##       ##    ##    ##    ##     ## ##    ## 
+// *  ##     ##  #######  ########    ##    ####    ###    ########  ######     ##     #######  ##     ## 
 
 MultiVector :: struct(bases: ..B) {
     values: [bases.count]T;
 }
 
 e0 :: MultiVector(0).{.[one]};
+
+#insert -> string {
+    builder : String_Builder;
+
+    append(*builder, "FULL_MV :: MultiVector(0");
+    for i: 1..1<<N-1 {
+        print_to_builder(*builder, ", %", i);
+    }
+    append(*builder, ");\n");
+
+    append(*builder, "MV_ZERO :: FULL_MV.{.[zero");
+    for i: 1..1<<N-1 {
+        append(*builder, ", zero");
+    }
+    append(*builder, "]};\n");
+
+    return builder_to_string(*builder);
+};
 
 #insert -> string {
     DEBUG :: false;
@@ -71,11 +87,11 @@ e0 :: MultiVector(0).{.[one]};
 
         indices := NewArray(grade, int); defer array_free(indices);
 
-        // iterate over all possible index combinations
+        // * iterate over all possible index combinations
         for i: 0..NN-1 {
             #if DEBUG print("    %: ", i);
 
-            // increase indices
+            // * increase indices
             indices[0] = i;
             for g: 0..grade-1-1 {
                 if indices[g] != 0 && indices[g] % N == 0 then
@@ -84,7 +100,7 @@ e0 :: MultiVector(0).{.[one]};
             for *indices { <<it %= N; }
             #if DEBUG print("%\n", indices);
 
-            // skip if the same element appears twice
+            // * skip if the same element appears twice
             for i0: 0..grade-1 {
                 for j0: i0+1..grade-1 {
                     if indices[i0] == indices[j0] {
@@ -130,10 +146,10 @@ fmt :: (mv: $V/MultiVector) -> string {
 
 
 
-MV_MV_Helper :: struct(a: Type, b: Type) {
-    MV :: #run combine_bases_mv_mv(a, b);
+MV_MV_ADD_Helper :: struct(a: Type, b: Type) {
+    MV :: #run combine_bases_mv_mv_add(a, b);
 }
-combine_bases_mv_mv :: ($atype: Type, $btype: Type) -> Type {
+combine_bases_mv_mv_add :: ($atype: Type, $btype: Type) -> Type {
     DEBUG :: false;
 
     N_combined :: #run () -> int {
@@ -188,9 +204,9 @@ combine_bases_mv_mv :: ($atype: Type, $btype: Type) -> Type {
 }
 
 
-operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_Helper(_A, _B).MV {
-    res : MV_MV_Helper(_A, _B).MV;
-    // assuming the bases are sorted from small to large value
+operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_ADD_Helper(_A, _B).MV {
+    res : MV_MV_ADD_Helper(_A, _B).MV;
+    // * assuming the bases are sorted from small to large value
     index_a := 0;
     index_b := 0;
     for res.bases {
@@ -201,9 +217,9 @@ operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_Helper(_A, _B).M
     }
     return res;
 }
-operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_Helper(_A, _B).MV {
-    res : MV_MV_Helper(_A, _B).MV;
-    // assuming the bases are sorted from small to large value
+operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_ADD_Helper(_A, _B).MV {
+    res : MV_MV_ADD_Helper(_A, _B).MV;
+    // * assuming the bases are sorted from small to large value
     index_a := 0;
     index_b := 0;
     for res.bases {
@@ -217,17 +233,17 @@ operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_Helper(_A, _B).M
 
 
 
-operator + :: (a: $_A/MultiVector, b: T) -> MV_MV_Helper(MultiVector(0), _A).MV #symmetric {
+operator + :: (a: $_A/MultiVector, b: T) -> MV_MV_ADD_Helper(MultiVector(0), _A).MV #symmetric {
     tmp : MultiVector(0) = ---;
     tmp.values[0] = b;
     return a + tmp;
 }
-operator - :: (a: $_A/MultiVector, b: T) -> MV_MV_Helper(MultiVector(0), _A).MV {
+operator - :: (a: $_A/MultiVector, b: T) -> MV_MV_ADD_Helper(MultiVector(0), _A).MV {
     tmp : MultiVector(0) = ---;
     tmp.values[0] = b;
     return a - tmp;
 }
-operator - :: (b: T, a: $_A/MultiVector) -> MV_MV_Helper(MultiVector(0), _A).MV {
+operator - :: (b: T, a: $_A/MultiVector) -> MV_MV_ADD_Helper(MultiVector(0), _A).MV {
     tmp : MultiVector(0) = ---;
     tmp.values[0] = b;
     return tmp - a;
@@ -250,13 +266,68 @@ operator / :: (a: $_A/MultiVector, b: T) -> _A {
 }
 
 
-//  ######   ########  #######     ########  ########   #######  ########
-// ##    ##  ##       ##     ##    ##     ## ##     ## ##     ## ##     ##
-// ##        ##       ##     ##    ##     ## ##     ## ##     ## ##     ##
-// ##   #### ######   ##     ##    ########  ########  ##     ## ##     ##
-// ##    ##  ##       ##     ##    ##        ##   ##   ##     ## ##     ##
-// ##    ##  ##       ##     ##    ##        ##    ##  ##     ## ##     ##
-//  ######   ########  #######     ##        ##     ##  #######  ########
+// * ########  ##     ##    ###    ##
+// * ##     ## ##     ##   ## ##   ##
+// * ##     ## ##     ##  ##   ##  ##
+// * ##     ## ##     ## ##     ## ##
+// * ##     ## ##     ## ######### ##
+// * ##     ## ##     ## ##     ## ##
+// * ########   #######  ##     ## ########
+
+
+MV_DUAL_Helper :: struct(a: Type) {
+    MV :: #run mv_dual(a);
+}
+
+mv_dual :: ($a: Type) -> Type {
+    b :: #run () -> [a.bases.count]B {
+        res : [a.bases.count]B = ---;
+        max :: (1 << N) - 1;
+        for ab, ai: a.bases {
+            res[ai] = ~ab & max;
+        }
+
+        cmp :: (a: B, b: B) -> s64 {
+            return cast(s64)(a > b);
+        }
+        bubble_sort(res, cmp);
+
+        return res;
+    }();
+
+    return MultiVector(..b);
+}
+
+dual :: (a: $_A/MultiVector) -> MV_DUAL_Helper(_A).MV {
+    res : MV_DUAL_Helper(_A).MV = ---;
+
+    #insert #run () -> string {
+        builder : String_Builder;
+
+        max :: (1 << N)-1;
+        for ab, ai: a.bases {
+            dual := ~ab & max;
+            for rb, ri: res.bases {
+                if dual != rb then continue;
+
+                print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
+            }
+        }
+
+        return builder_to_string(*builder);
+    }();
+
+    return res;
+}
+
+
+// *  ######   ########  #######     ########  ########   #######  ########
+// * ##    ##  ##       ##     ##    ##     ## ##     ## ##     ## ##     ##
+// * ##        ##       ##     ##    ##     ## ##     ## ##     ## ##     ##
+// * ##   #### ######   ##     ##    ########  ########  ##     ## ##     ##
+// * ##    ##  ##       ##     ##    ##        ##   ##   ##     ## ##     ##
+// * ##    ##  ##       ##     ##    ##        ##    ##  ##     ## ##     ##
+// *  ######   ########  #######     ##        ##     ##  #######  ########
 
 MV_MV_GEO_PROD_Helper :: struct(a: Type, b: Type) {
     MV :: #run combine_bases_mv_mv_geo_prod(a, b);
@@ -309,7 +380,7 @@ combine_bases_mv_mv_geo_prod :: ($atype: Type, $btype: Type) -> Type {
 
 operator * :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_GEO_PROD_Helper(_A,_B).MV {
     res : MV_MV_GEO_PROD_Helper(_A,_B).MV;
-    // assuming the bases are sorted from small to large value
+    // * assuming the bases are sorted from small to large value
 
     #insert #run ()->string {
         DEBUG :: false;

@@ -1,5 +1,5 @@
 #import "Basic";
-#import,file "module.jai"(1,3,0);
+#import,file "module.jai"(1,2,0);
 
 main :: () {
     println("e00 %", fmt(e0*e0));
@@ -7,7 +7,7 @@ main :: () {
     println("e12 %", fmt(e1*e2));
     println("e21 %", fmt(e2*e1));
 
-    // // println("hamming_weight(5) = %", hamming_weight(5));
+    // println("hamming_weight(5) = %", hamming_weight(5));
 
     println("42.0 * e2 = %", fmt(42.0 * e2));
     println("e3 * 313.0 = %", fmt(e3 * 313.0));
@@ -48,4 +48,19 @@ main :: () {
 
     k1 := v3 * w;
     mv_print("k1", k1);
+
+    k2 := MV_ZERO;
+    k2 += k1;
+    for i: 0..3 {
+        mv_print("k2", k2);
+        k2 *= k1;
+    }
+
+    v3_dual := dual(v3);
+    mv_print("v3_dual", v3_dual);
+
+    // mv_print("k2", k1 * k1);
+    // mv_print("k2", k1 * k1 * k1);
+    // mv_print("k2", k1 * k1 * k1 * k1);
+    // mv_print("k2", k1 * k1 * k1 * k1 * k1);
 }

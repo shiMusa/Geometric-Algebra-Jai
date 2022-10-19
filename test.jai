@@ -69,7 +69,16 @@ main :: () {
 
     println("polar of v3: %", fmt(polar(v3)));
 
+    println("v3 * k0 = %", fmt(v3*k0));
     println("meet of v3 and k0: %", fmt(meet(v3, k0)));
+    println("join of v3 and k0: %", fmt(join(v3, k0)));
+    println("x * w = %", fmt(x*w));
     println("meet of x and w: %", fmt(meet(x, w)));
+    println("join of x and w: %", fmt(join(x, w)));
+    println("x * e3 = %", fmt(x*e3));
     println("meet of x and e3: %", fmt(meet(x, e3)));
+    println("join of x and e3: %", fmt(join(x, e3)));
+
+
+    println("join of w and v: %", fmt(join(w, v)));
 }

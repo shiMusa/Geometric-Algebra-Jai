@@ -491,9 +491,39 @@ mv_mv_outer :: ($a: Type, $b: Type) -> Type {
 
 
 meet :: outer;
-outer :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_OUTER_Helper(_A, _B).MV {
-    res : MV_MV_OUTER_Helper(_A, _B).MV = ---;
-    return res;
+outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_OUTER_Helper(_A, _B).MV {
+    grade :: #run () -> int {
+        x : _A = ---;
+        y : _B = ---;
+        z := x * y;
+        return hamming_weight(z.bases[z.bases.count-1]); // * since the bases are sorted from small to large
+    }();
+
+    return select(a * b, grade);
+}
+
+
+// * ########  ########  ######   ########  ########  ######   ######  #### ##     ## ########
+// * ##     ## ##       ##    ##  ##     ## ##       ##    ## ##    ##  ##  ##     ## ##
+// * ##     ## ##       ##        ##     ## ##       ##       ##        ##  ##     ## ##
+// * ########  ######   ##   #### ########  ######    ######   ######   ##  ##     ## ######
+// * ##   ##   ##       ##    ##  ##   ##   ##             ##       ##  ##   ##   ##  ##
+// * ##    ##  ##       ##    ##  ##    ##  ##       ##    ## ##    ##  ##    ## ##   ##
+// * ##     ## ########  ######   ##     ## ########  ######   ######  ####    ###    ########
+
+MV_MV_REGRESSIVE_Helper :: struct(a: Type, b: Type) {
+    MV :: #run mv_mv_regressive(a,b);
+}
+mv_mv_regressive :: ($a: Type, $b: Type) -> Type {
+    x : a = ---;
+    y : b = ---;
+    z := dual(meet(dual(x), dual(y)));
+    return type_of(z);
+}
+
+join :: regressive;
+regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_REGRESSIVE_Helper(_A, _B).MV {
+    return dual(meet(dual(a), dual(b)));
 }
 
 

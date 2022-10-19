@@ -80,5 +80,10 @@ main :: () {
     println("join of x and e3: %", fmt(join(x, e3)));
 
 
+    println("v : % = %", type_of(v), fmt(v));
+    println("w : % = %", type_of(w), fmt(w));
+    println("v * w = %", fmt(v*w));
+    println("e1 * e1 = %", fmt(e1*e1));
     println("join of w and v: %", fmt(join(w, v)));
+    println("inner of w and v: %", fmt(inner(w, v)));
 }

@@ -498,6 +498,7 @@ regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> REGRESSIVE(_A, 
 GEO :: struct(a: Type, b: Type) {
     MV :: #run geo(a, b);
 }
+
 geo :: ($atype: Type, $btype: Type) -> Type {
     DEBUG :: false;
 
@@ -561,7 +562,7 @@ geo :: (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
                 // println("checking bases % and %", ab, bb);
                 if ab == bb {
                     #if DEBUG println("equal bases %", ab);
-                    if ab & ((1 << ZER) - 1) > 0 then continue;
+                    if ab >> (NEG+POS) & ((1 << ZER) - 1) > 0 then continue;
 
                     hw_negs := hamming_weight(ab >> ZER & ((1 << NEG)-1));
 
@@ -586,7 +587,7 @@ geo :: (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
                         continue;
                     }
 
-                    zeros := overlap & ((1 << ZER) - 1);
+                    zeros := overlap >> (NEG+POS) & ((1 << ZER) - 1);
                     if zeros > 0 then continue;
                     #if DEBUG println("no zeros");
 
@@ -612,4 +613,27 @@ geo :: (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
     }();
 
     return res;
+}
+
+// * #### ##    ## ##    ## ######## ########
+// *  ##  ###   ## ###   ## ##       ##     ##
+// *  ##  ####  ## ####  ## ##       ##     ##
+// *  ##  ## ## ## ## ## ## ######   ########
+// *  ##  ##  #### ##  #### ##       ##   ##
+// *  ##  ##   ### ##   ### ##       ##    ##
+// * #### ##    ## ##    ## ######## ##     ##
+
+INNER :: struct(a: Type, b: Type) {
+    MV :: #run inner(a,b);
+}
+inner :: ($a: Type, $b: Type) -> Type {
+    grade_a :: #run hamming_weight(a.bases[a.bases.count-1]);
+    grade_b :: #run hamming_weight(b.bases[b.bases.count-1]);
+    return select(#run geo(a, b), #run abs(grade_a - grade_b));
+}
+
+inner :: (a: $_A/MultiVector, b: $_B/MultiVector) -> INNER(_A, _B).MV {
+    grade_a :: #run hamming_weight(a.bases[a.bases.count-1]);
+    grade_b :: #run hamming_weight(b.bases[b.bases.count-1]);
+    return select(a * b, #run abs(grade_a - grade_b));
 }

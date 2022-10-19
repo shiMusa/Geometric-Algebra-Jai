@@ -159,10 +159,10 @@ fmt :: (mv: $V/MultiVector) -> string {
 // *  ######  ######## ######## ########  ######     ##
 
 
-MV_SELECT_Helper :: struct(a: Type, grade: int) {
-    MV :: #run mv_select(a,grade);
+SELECT :: struct(a: Type, grade: int) {
+    MV :: #run select(a,grade);
 }
-mv_select :: ($a: Type, $grade: int) -> Type {
+select :: ($a: Type, $grade: int) -> Type {
     N_select :: #run () -> int {
         res := 0;
         for a.bases {
@@ -190,8 +190,8 @@ mv_select :: ($a: Type, $grade: int) -> Type {
     }
 }
 
-select :: inline (a: $_A/MultiVector, $grade: int) -> MV_SELECT_Helper(_A, grade).MV {
-    res : MV_SELECT_Helper(_A, grade).MV = ---;
+select :: inline (a: $_A/MultiVector, $grade: int) -> SELECT(_A, grade).MV {
+    res : SELECT(_A, grade).MV = ---;
 
     #insert #run () -> string {
         builder : String_Builder;
@@ -220,10 +220,10 @@ select :: inline (a: $_A/MultiVector, $grade: int) -> MV_SELECT_Helper(_A, grade
 // *   ##    ##
 // *        ##
 
-MV_MV_ADD_Helper :: struct(a: Type, b: Type) {
-    MV :: #run combine_bases_mv_mv_add(a, b);
+ADD :: struct(a: Type, b: Type) {
+    MV :: #run add(a, b);
 }
-combine_bases_mv_mv_add :: ($atype: Type, $btype: Type) -> Type {
+add :: ($atype: Type, $btype: Type) -> Type {
     DEBUG :: false;
 
     N_combined :: #run () -> int {
@@ -278,8 +278,8 @@ combine_bases_mv_mv_add :: ($atype: Type, $btype: Type) -> Type {
 }
 
 
-operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_ADD_Helper(_A, _B).MV {
-    res : MV_MV_ADD_Helper(_A, _B).MV;
+operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> ADD(_A, _B).MV {
+    res : ADD(_A, _B).MV;
     // * assuming the bases are sorted from small to large value
     index_a := 0;
     index_b := 0;
@@ -291,8 +291,8 @@ operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_ADD_Helper(_A, _
     }
     return res;
 }
-operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_ADD_Helper(_A, _B).MV {
-    res : MV_MV_ADD_Helper(_A, _B).MV;
+operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> ADD(_A, _B).MV {
+    res : ADD(_A, _B).MV;
     // * assuming the bases are sorted from small to large value
     index_a := 0;
     index_b := 0;
@@ -307,17 +307,17 @@ operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_ADD_Helper(_A, _
 
 
 
-operator + :: (a: $_A/MultiVector, b: T) -> MV_MV_ADD_Helper(MultiVector(0), _A).MV #symmetric {
+operator + :: (a: $_A/MultiVector, b: T) -> ADD(MultiVector(0), _A).MV #symmetric {
     tmp : MultiVector(0) = ---;
     tmp.values[0] = b;
     return a + tmp;
 }
-operator - :: (a: $_A/MultiVector, b: T) -> MV_MV_ADD_Helper(MultiVector(0), _A).MV {
+operator - :: (a: $_A/MultiVector, b: T) -> ADD(MultiVector(0), _A).MV {
     tmp : MultiVector(0) = ---;
     tmp.values[0] = b;
     return a - tmp;
 }
-operator - :: (b: T, a: $_A/MultiVector) -> MV_MV_ADD_Helper(MultiVector(0), _A).MV {
+operator - :: (b: T, a: $_A/MultiVector) -> ADD(MultiVector(0), _A).MV {
     tmp : MultiVector(0) = ---;
     tmp.values[0] = b;
     return tmp - a;
@@ -349,11 +349,11 @@ operator / :: (a: $_A/MultiVector, b: T) -> _A {
 // * ########   #######  ##     ## ########
 
 
-MV_DUAL_Helper :: struct(a: Type) {
-    MV :: #run mv_dual(a);
+DUAL :: struct(a: Type) {
+    MV :: #run dual(a);
 }
 
-mv_dual :: ($a: Type) -> Type {
+dual :: ($a: Type) -> Type {
     b :: #run () -> [a.bases.count]B {
         res : [a.bases.count]B = ---;
         max :: (1 << N) - 1;
@@ -372,8 +372,8 @@ mv_dual :: ($a: Type) -> Type {
     return MultiVector(..b);
 }
 
-dual :: (a: $_A/MultiVector) -> MV_DUAL_Helper(_A).MV {
-    res : MV_DUAL_Helper(_A).MV = ---;
+dual :: (a: $_A/MultiVector) -> DUAL(_A).MV {
+    res : DUAL(_A).MV = ---;
 
     #insert #run () -> string {
         builder : String_Builder;
@@ -430,14 +430,13 @@ reverse :: (a: $_A/MultiVector) -> _A {
 // * ##        ##     ## ##       ##     ## ##    ##
 // * ##         #######  ######## ##     ## ##     ##
 
-MV_POLAR_Helper :: struct(a: Type) {
-    MV :: #run mv_polar(a);
+POLAR :: struct(a: Type) {
+    MV :: #run polar(a);
 }
-mv_polar :: ($a: Type) -> Type {
-    x : a;
-    return type_of(x * eI);
+polar :: ($a: Type) -> Type {
+    return geo(a, type_of(eI));
 }
-polar :: inline (a: $_A/MultiVector) -> MV_POLAR_Helper(_A).MV {
+polar :: inline (a: $_A/MultiVector) -> POLAR(_A).MV {
     return a * eI;
 }
 
@@ -450,55 +449,19 @@ polar :: inline (a: $_A/MultiVector) -> MV_POLAR_Helper(_A).MV {
 // * ##     ## ##     ##    ##    ##       ##    ##
 // *  #######   #######     ##    ######## ##     ##
 
-MV_MV_OUTER_Helper :: struct(a: Type, b: Type) {
-    MV :: #run mv_mv_outer(a,b);
+OUTER :: struct(a: Type, b: Type) {
+    MV :: #run outer(a,b);
 }
-mv_mv_outer :: ($a: Type, $b: Type) -> Type {
-
-    N_grade :: #run () -> int {
-        res := 0;
-        x : a = ---;
-        y : b = ---;
-        z := x * y;
-        hw_max := hamming_weight(z.bases[z.bases.count-1]);
-        for z.bases {
-            if hamming_weight(it) == hw_max then res += 1;
-        }
-        return res;
-    }();
-
-    basis :: #run () -> [N_grade]B {
-        res : [N_grade]B = ---;
-        indx := 0;
-
-        x : a = ---;
-        y : b = ---;
-        z := x * y;
-
-        hw_max := hamming_weight(z.bases[z.bases.count-1]);
-        for z.bases {
-            if hamming_weight(it) == hw_max {
-                res[indx] = it;
-                indx += 1;
-            }
-        }
-
-        return res;
-    }();
-
-    return MultiVector(..basis);
+outer :: ($a: Type, $b: Type) -> Type {
+    o :: GEO(a, b).MV;
+    grade :: #run hamming_weight(o.bases[o.bases.count-1]);
+    return select(o, grade);
 }
 
 
 meet :: outer;
-outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_OUTER_Helper(_A, _B).MV {
-    grade :: #run () -> int {
-        x : _A = ---;
-        y : _B = ---;
-        z := x * y;
-        return hamming_weight(z.bases[z.bases.count-1]); // * since the bases are sorted from small to large
-    }();
-
+outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> OUTER(_A, _B).MV {
+    grade :: #run hamming_weight(OUTER(_A, _B).MV.bases[0]);
     return select(a * b, grade);
 }
 
@@ -511,18 +474,15 @@ outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_OUTER_Helper(_
 // * ##    ##  ##       ##    ##  ##    ##  ##       ##    ## ##    ##  ##    ## ##   ##
 // * ##     ## ########  ######   ##     ## ########  ######   ######  ####    ###    ########
 
-MV_MV_REGRESSIVE_Helper :: struct(a: Type, b: Type) {
-    MV :: #run mv_mv_regressive(a,b);
+REGRESSIVE :: struct(a: Type, b: Type) {
+    MV :: #run regressive(a, b);
 }
-mv_mv_regressive :: ($a: Type, $b: Type) -> Type {
-    x : a = ---;
-    y : b = ---;
-    z := dual(meet(dual(x), dual(y)));
-    return type_of(z);
+regressive :: ($a: Type, $b: Type) -> Type {
+    return #run dual(#run outer(#run dual(a), #run dual(b)));
 }
 
 join :: regressive;
-regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_REGRESSIVE_Helper(_A, _B).MV {
+regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> REGRESSIVE(_A, _B).MV {
     return dual(meet(dual(a), dual(b)));
 }
 
@@ -535,10 +495,10 @@ regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_REGRESSIV
 // * ##    ##  ##       ##     ##    ##        ##    ##  ##     ## ##     ##
 // *  ######   ########  #######     ##        ##     ##  #######  ########
 
-MV_MV_GEO_PROD_Helper :: struct(a: Type, b: Type) {
-    MV :: #run combine_bases_mv_mv_geo_prod(a, b);
+GEO :: struct(a: Type, b: Type) {
+    MV :: #run geo(a, b);
 }
-combine_bases_mv_mv_geo_prod :: ($atype: Type, $btype: Type) -> Type {
+geo :: ($atype: Type, $btype: Type) -> Type {
     DEBUG :: false;
 
     N_combined :: #run () -> int {
@@ -584,8 +544,11 @@ combine_bases_mv_mv_geo_prod :: ($atype: Type, $btype: Type) -> Type {
     return MultiVector(..b);
 }
 
-operator * :: (a: $_A/MultiVector, b: $_B/MultiVector) -> MV_MV_GEO_PROD_Helper(_A,_B).MV {
-    res : MV_MV_GEO_PROD_Helper(_A,_B).MV;
+operator * :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
+    return geo(a, b);
+}
+geo :: (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
+    res : GEO(_A,_B).MV;
     // * assuming the bases are sorted from small to large value
 
     #insert #run ()->string {

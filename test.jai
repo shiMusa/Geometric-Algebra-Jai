@@ -71,19 +71,29 @@ main :: () {
 
     println("v3 * k0 = %", fmt(v3*k0));
     println("meet of v3 and k0: %", fmt(meet(v3, k0)));
-    println("join of v3 and k0: %", fmt(join(v3, k0)));
+    println("inner of v3 and k0: %", fmt(inner(v3, k0)));
+    println("comm of v3 and k0: %", fmt(comm(v3, k0)));
+
     println("x * w = %", fmt(x*w));
     println("meet of x and w: %", fmt(meet(x, w)));
     println("join of x and w: %", fmt(join(x, w)));
+    println("inner of x and w: %", fmt(inner(x, w)));
+    println("comm of x and w: %", fmt(comm(x, w)));
+
     println("x * e3 = %", fmt(x*e3));
     println("meet of x and e3: %", fmt(meet(x, e3)));
     println("join of x and e3: %", fmt(join(x, e3)));
-
+    println("inner of x and e3: %", fmt(inner(x, e3)));
+    println("comm of x and e3: %", fmt(comm(x, e3)));
 
     println("v : % = %", type_of(v), fmt(v));
     println("w : % = %", type_of(w), fmt(w));
     println("v * w = %", fmt(v*w));
-    println("e1 * e1 = %", fmt(e1*e1));
+    println("meet of w and v: %", fmt(meet(w, v)));
     println("join of w and v: %", fmt(join(w, v)));
     println("inner of w and v: %", fmt(inner(w, v)));
+    println("comm of w and v: %", fmt(comm(w, v)));
+
+    println("e1 * e2 : % = %, e2 * e1 : % = %", type_of(e1*e2), fmt(e1*e2), type_of(e2*e1), fmt(e2*e1));
+    println("e1 * e2 * e1 : % = %, e2 * e1 * e1 : % = %", type_of(e1*e2*e1), fmt(e1*e2*e1), type_of(e2*e1*e1), fmt(e2*e1*e1));
 }

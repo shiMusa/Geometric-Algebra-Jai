@@ -26,6 +26,10 @@ N_ELEMENTS :: #run powi(2, N+1);
 #run print("Generating algebra with basis (%,%,%). Basis elements represented as %\n", POS, NEG, ZER, B);
 
 
+fmt :: inline (x: T) -> string {
+    return sprint("%", x);
+}
+
 fmt :: (n: B) -> string {
     builder: String_Builder;
 
@@ -141,7 +145,7 @@ fmt :: (mv: $V/MultiVector) -> string {
     builder : String_Builder;
 
     for b, i: V.bases {
-        if i > 0 && mv.values[i] > 0
+        if i > 0 && mv.values[i] >= 0
             append(*builder, " +");
         print_to_builder(*builder, " %'%", mv.values[i], fmt(b));
     }
@@ -508,6 +512,10 @@ geo :: ($atype: Type, $btype: Type) -> Type {
         for bb : btype.bases {
             for ab : atype.bases {
                 combined := ab ^ bb;
+
+                overlap := ab & bb;
+                if overlap >> (POS+NEG) continue; // * basis squares to zero
+
                 array_add_if_unique(*res, combined);
             }
         }
@@ -519,6 +527,8 @@ geo :: ($atype: Type, $btype: Type) -> Type {
 
     #if DEBUG println("N_combined = % from % and %", N_combined, atype.bases, btype.bases);
 
+    if N_combined == 0 return MultiVector(0);
+
     b :: #run () -> [N_combined]B {
         res : [N_combined]B = ---;
 
@@ -526,6 +536,9 @@ geo :: ($atype: Type, $btype: Type) -> Type {
         for bb : btype.bases {
             for ab : atype.bases {
                 combined := ab ^ bb;
+
+                overlap := ab & bb;
+                if overlap >> (POS+NEG) continue; // * basis squares to zero
 
                 array_add_if_unique(*tmp, combined);
             }
@@ -548,6 +561,9 @@ geo :: ($atype: Type, $btype: Type) -> Type {
 operator * :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
     return geo(a, b);
 }
+
+
+
 geo :: (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
     res : GEO(_A,_B).MV;
     // * assuming the bases are sorted from small to large value
@@ -559,12 +575,12 @@ geo :: (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
         #if DEBUG println("mv % and % , res % ------------------------", a.bases, b.bases, res.bases);
         for ab, ai: a.bases {
             for bb, bi: b.bases {
-                // println("checking bases % and %", ab, bb);
+                #if DEBUG println("checking bases % and %", ab, bb);
                 if ab == bb {
                     #if DEBUG println("equal bases %", ab);
                     if ab >> (NEG+POS) & ((1 << ZER) - 1) > 0 then continue;
 
-                    hw_negs := hamming_weight(ab >> ZER & ((1 << NEG)-1));
+                    hw_negs := hamming_weight(ab >> POS & ((1 << NEG)-1));
 
                     if hw_negs % 2 == 0 {
                         print_to_builder(*builder, "res.values[0] += a.values[%] * b.values[%];\n", ai, bi);
@@ -572,32 +588,49 @@ geo :: (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
                         print_to_builder(*builder, "res.values[0] -= a.values[%] * b.values[%];\n", ai, bi);
                     }
                 } else {
-                    #if DEBUG println("bases % and %", ab, bb);
+                    #if DEBUG println("non-equal bases % and %", ab, bb);
                     overlap  := ab & bb;
                     combined := ab ^ bb;
                     #if DEBUG println("overlap %, combined %", overlap, combined);
+
+                    // ? An algorithm to find the number of neighbor swaps necessary to sort an array:
+                    // ? https://www.geeksforgeeks.org/number-swaps-sort-adjacent-swapping-allowed/
                     
-                    if overlap == 0 {
+                    if overlap == 0 { // * no basis elements square up
                         for res.bases {
                             if it == combined {
-                                print_to_builder(*builder, "res.values[%] += a.values[%] * b.values[%];\n", it_index, ai, bi);
+
+                                n_swaps := count_swaps(ab, bb);
+
+                                if n_swaps % 2 == 0 {
+                                    print_to_builder(*builder, "res.values[%] += a.values[%] * b.values[%];\n", it_index, ai, bi);
+                                } else {
+                                    print_to_builder(*builder, "res.values[%] -= a.values[%] * b.values[%];\n", it_index, ai, bi);
+                                }
+                                
                                 break;
                             }
                         }
                         continue;
                     }
 
-                    zeros := overlap >> (NEG+POS) & ((1 << ZER) - 1);
-                    if zeros > 0 then continue;
+                    // * overlap != 0
+
+                    if overlap >> (NEG+POS) > 0 then continue;
                     #if DEBUG println("no zeros");
 
-                    hw_negs := hamming_weight(overlap >> ZER & ((1 << NEG)-1));
+                    // * the negative signs from squaring bases that square to -1
+                    hw_negs := hamming_weight(overlap >> POS & ((1 << NEG)-1));
+                    #if DEBUG println("hamming weight of negs: %", hw_negs);
 
                     for res.bases {
                         #if DEBUG println("checking res basis %", it);
                         if it == combined {
+
+                            n_swaps := count_swaps(ab, bb);
+
                             #if DEBUG println("found basis % in res at index %", it, it_index);
-                            if hw_negs % 2 == 0
+                            if (hw_negs+n_swaps) % 2 == 0
                                 print_to_builder(*builder, "res.values[%] += a.values[%] * b.values[%];\n", it_index, ai, bi);
                             else
                                 print_to_builder(*builder, "res.values[%] -= a.values[%] * b.values[%];\n", it_index, ai, bi);
@@ -636,4 +669,26 @@ inner :: (a: $_A/MultiVector, b: $_B/MultiVector) -> INNER(_A, _B).MV {
     grade_a :: #run hamming_weight(a.bases[a.bases.count-1]);
     grade_b :: #run hamming_weight(b.bases[b.bases.count-1]);
     return select(a * b, #run abs(grade_a - grade_b));
+}
+
+
+// *  ######   #######  ##     ## ##     ## ##     ## ########    ###    ########  #######  ########
+// * ##    ## ##     ## ###   ### ###   ### ##     ##    ##      ## ##      ##    ##     ## ##     ##
+// * ##       ##     ## #### #### #### #### ##     ##    ##     ##   ##     ##    ##     ## ##     ##
+// * ##       ##     ## ## ### ## ## ### ## ##     ##    ##    ##     ##    ##    ##     ## ########
+// * ##       ##     ## ##     ## ##     ## ##     ##    ##    #########    ##    ##     ## ##   ##
+// * ##    ## ##     ## ##     ## ##     ## ##     ##    ##    ##     ##    ##    ##     ## ##    ##
+// *  ######   #######  ##     ## ##     ##  #######     ##    ##     ##    ##     #######  ##     ##
+
+COMM :: struct(a: Type, b: Type) {
+    MV :: #run comm(a,b);
+}
+
+comm :: ($a: Type, $b: Type) ->  Type {
+    return geo(a, b);
+}
+
+cross :: comm;
+comm :: (a: $_A/MultiVector, b: $_B/MultiVector) -> COMM(_A,_B).MV {
+    return cast(T)0.5 * (a*b - b*a);
 }

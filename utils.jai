@@ -86,3 +86,106 @@ set_const_value :: (type: *Type_Info_Struct, name: string, value: $T) {
         <<pointer = value;
     }
 }
+
+
+// * mergesort for counting the number of neighbor-swaps necessary to sort an array
+// * see https://www.geeksforgeeks.org/number-swaps-sort-adjacent-swapping-allowed/
+
+count_swaps :: (arr: []$B) -> int {
+    tmp := NewArray(arr.count, B, false);
+    defer array_free(tmp);
+
+    return merge_sort(arr, tmp, 0, arr.count-1);
+}
+
+merge_sort :: (arr: []$B, tmp: []B, left: int, right: int) -> int {
+    inv_count := 0;
+    if right > left {
+        mid := (right + left)/2;
+
+        inv_count  = merge_sort(arr, tmp, left, mid);
+        inv_count += merge_sort(arr, tmp, mid+1, right);
+
+        inv_count += merge(arr, tmp, left, mid+1, right);
+    }
+    return inv_count;
+}
+
+merge :: (arr: []$B, tmp: []B, left: int, mid: int, right: int) -> int {
+    inv_count := 0;
+
+    i := left;
+    j := mid;
+    k := left;
+    while i <= mid-1 && j <= right {
+        if arr[i] <= arr[j] {
+            tmp[k] = arr[i];
+            k += 1;
+            i += 1;
+        } else {
+            tmp[k] = arr[j];
+            k += 1;
+            j += 1;
+            inv_count += mid - i;
+        }
+    }
+
+    while i <= mid-1 {
+        tmp[k] = arr[i];
+        k += 1;
+        i += 1;
+    }
+
+    while j <= right {
+        tmp[k] = arr[j];
+        k += 1;
+        j += 1;
+    }
+
+    for i: left..right {
+        arr[i] = tmp[i];
+    }
+
+    return inv_count;
+}
+
+
+basis_to_array :: (b: $B) -> []int {
+    res : [..]int;
+    x := b;
+    i := 0;
+    while x {
+        if x & 1 {
+            array_add(*res, i);
+        }
+        i += 1;
+        x = x >> 1;
+    }
+    return res;
+}
+
+count_swaps :: (a: $B, b: B) -> int {
+    DEBUG :: false;
+
+    #if DEBUG println("count swaps of % and %", a, b);
+
+    arr_a := basis_to_array(a);
+    defer array_free(arr_a);
+    if arr_a.count == 0 then return 0;
+
+    arr_b := basis_to_array(b);
+    defer array_free(arr_b);
+    if arr_b.count == 0 then return 0;
+
+    combined := NewArray(arr_a.count + arr_b.count, int, false);
+    defer array_free(combined);
+
+    for arr_a combined[              it_index] = it;
+    for arr_b combined[arr_a.count + it_index] = it;
+    #if DEBUG println("combined = %", combined);
+
+    n_swaps := count_swaps(combined);
+    #if DEBUG println("n_swaps = %", n_swaps);
+
+    return n_swaps;
+}

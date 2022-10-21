@@ -1,5 +1,5 @@
 #import "Basic";
-#import,file "module.jai"(1,1,1);
+#import,file "module.jai"(2,0,1);
 
 main :: () {
     println("e00 %", fmt(e0*e0));
@@ -96,4 +96,15 @@ main :: () {
 
     println("e1 * e2 : % = %, e2 * e1 : % = %", type_of(e1*e2), fmt(e1*e2), type_of(e2*e1), fmt(e2*e1));
     println("e1 * e2 * e1 : % = %, e2 * e1 * e1 : % = %", type_of(e1*e2*e1), fmt(e1*e2*e1), type_of(e2*e1*e1), fmt(e2*e1*e1));
+
+    // #if POS == 2 && NEG == 0 && ZER == 1 {
+        println("2D PGA");
+
+        l := join(point(-1.0, 0.0), point(1.0, 0.0));
+        p := point(0.5, 1.0);
+        perp := orthogonal_line(l, p);
+        intersection := meet(l, perp);
+        println("orthogonal line to line % through point % = %", fmt(l), fmt(p), fmt(perp));
+        println("both lines intersect at %", intersection);
+    // }
 }

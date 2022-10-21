@@ -2,7 +2,7 @@
 #import "Math";
 #import "Sort";
 #load "utils.jai";
-#module_parameters(POS: int, NEG: int, ZER: int, T := float32, STACK_ALLOC := false);
+#module_parameters(POS: int, NEG: int, ZER: int, T := float32);
 
 #if POS == 2 && NEG == 0 && ZER == 1 #load "pga2d.jai";
 

@@ -465,7 +465,19 @@ outer :: ($a: Type, $b: Type) -> Type {
 
 meet :: outer;
 outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> OUTER(_A, _B).MV {
+    DEBUG :: false;
     grade :: #run hamming_weight(OUTER(_A, _B).MV.bases[0]);
+
+    #if DEBUG {
+              println("meet --------------------------");
+        defer println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+
+        println("a = %", fmt(a));
+        println("b = %", fmt(b));
+        println("grade = %", grade);
+        println("a * b = %", fmt(a*b));
+    }
+
     return select(a * b, grade);
 }
 
@@ -666,8 +678,16 @@ inner :: ($a: Type, $b: Type) -> Type {
 }
 
 inner :: (a: $_A/MultiVector, b: $_B/MultiVector) -> INNER(_A, _B).MV {
+    DEBUG :: false;
     grade_a :: #run hamming_weight(a.bases[a.bases.count-1]);
     grade_b :: #run hamming_weight(b.bases[b.bases.count-1]);
+    #if DEBUG       println("inner() ----------------------------");
+    #if DEBUG defer println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+    #if DEBUG println("a = %", fmt(a));
+    #if DEBUG println("b = %", fmt(b));
+    #if DEBUG println("grade a = %, grade b = %", grade_a, grade_b);
+    #if DEBUG println("return grade %", abs(grade_a - grade_b));
+    #if DEBUG println("a * b = %", fmt(a * b));
     return select(a * b, #run abs(grade_a - grade_b));
 }
 

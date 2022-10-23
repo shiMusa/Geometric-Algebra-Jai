@@ -104,7 +104,7 @@ main :: () {
         p := point(0.5, 1.0);
         perp := orthogonal_line(l, p);
         intersection := meet(l, perp);
-        println("orthogonal line to line % through point % = %", fmt(l), fmt(p), fmt(perp));
-        println("both lines intersect at %", intersection);
+        println("orthogonal line to line % through point % = %", fmt_euclid(l), fmt_euclid(p), fmt_euclid(perp));
+        println("both lines intersect at %", fmt_euclid(intersection));
     // }
 }

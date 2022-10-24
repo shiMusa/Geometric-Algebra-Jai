@@ -216,6 +216,35 @@ select :: inline (a: $_A/MultiVector, $grade: int) -> SELECT(_A, grade).MV {
 }
 
 
+select :: (a: $_A/MultiVector, $MV: Type) -> MV {
+    #if _A == MV {
+        return a;
+    } else {
+        res : MV;
+
+        #insert #run () -> string {
+            builder : String_Builder;
+
+            for res.bases {
+                for ab, ai: a.bases {
+                    if it == ab {
+                        print_to_builder(*builder, "res.values[%] = a.values[%];\n", it_index, ai);
+                        break;
+                    }
+                }
+            }
+
+            return builder_to_string(*builder);
+        }();
+
+        return res;
+    }
+}
+
+select :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> _B {
+    return select(a, _B);
+}
+
 // *              ##
 // *   ##        ##
 // *   ##       ##
@@ -677,6 +706,7 @@ inner :: ($a: Type, $b: Type) -> Type {
     return select(#run geo(a, b), #run abs(grade_a - grade_b));
 }
 
+dot :: inner;
 inner :: (a: $_A/MultiVector, b: $_B/MultiVector) -> INNER(_A, _B).MV {
     DEBUG :: false;
     grade_a :: #run hamming_weight(a.bases[a.bases.count-1]);

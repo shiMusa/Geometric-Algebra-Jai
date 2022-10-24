@@ -106,5 +106,12 @@ main :: () {
         intersection := meet(l, perp);
         println("orthogonal line to line % through point % = %", fmt_euclid(l), fmt_euclid(p), fmt_euclid(perp));
         println("both lines intersect at %", fmt_euclid(intersection));
+
+        p2 := point(10.0, -20.0);
+        println("project % onto % : %", fmt_euclid(p2), fmt_euclid(l), fmt_euclid(project(p2, l)));
+        println("project % onto % : %", fmt_euclid(p2), fmt_euclid(perp), fmt_euclid(project(p2, perp)));
+        
+        println("project % onto % : % < %", fmt_euclid(l), fmt_euclid(p2), fmt_euclid(project(l, p2)), type_of(project(l, p2)));
+        println("project % onto % : % < %", fmt_euclid(perp), fmt_euclid(p2), fmt_euclid(project(perp, p2)), type_of(project(perp, p2)));
     // }
 }

@@ -112,6 +112,13 @@ main :: () {
         println("project % onto % : %", fmt_euclid(p2), fmt_euclid(perp), fmt_euclid(project(p2, perp)));
         
         println("project % onto % : % < %", fmt_euclid(l), fmt_euclid(p2), fmt_euclid(project(l, p2)), type_of(project(l, p2)));
+        println("orthogonal direction: %", fmt_euclid(orthogonal_direction(project(l, p2))));
         println("project % onto % : % < %", fmt_euclid(perp), fmt_euclid(p2), fmt_euclid(project(perp, p2)), type_of(project(perp, p2)));
+        println("orthogonal direction: %", fmt_euclid(orthogonal_direction(project(perp, p2))));
+
+
+        println("distance between % and %: %", fmt_euclid(p), fmt_euclid(p2), distance(p, p2));
+        l2 := join(point(3.0, 42.0), point(-10.1, 42.0));
+        println("distance between % and % = %", fmt_euclid(l), fmt_euclid(l2), distance(l,l2));
     // }
 }

@@ -2,9 +2,12 @@
 #import "Math";
 #import "Sort";
 #load "utils.jai";
-#module_parameters(POS: int, NEG: int, ZER: int, T := float32);
+#module_parameters(_POS: int, _NEG: int, _ZER: int, T := float32);
+POS :: _POS;
+NEG :: _NEG;
+ZER :: _ZER;
 
-#if POS == 2 && NEG == 0 && ZER == 1 #load "pga2d.jai";
+#if POS == 2 && NEG == 0 && ZER == 1 #load "pga.jai";
 
 one  :: #run cast(T)1;
 zero :: #run cast(T)0;
@@ -62,6 +65,7 @@ MultiVector :: struct(bases: ..B) {
 
 e0 :: MultiVector(0).{.[one]};
 eI :: MultiVector(1<<N - 1).{.[one]};
+MV_I :: MultiVector(1<<N - 1);
 #run println("eI : % = %", type_of(eI), fmt(eI));
 
 #insert -> string {
@@ -373,61 +377,6 @@ operator / :: (a: $_A/MultiVector, b: T) -> _A {
 }
 
 
-// * ########  ##     ##    ###    ##
-// * ##     ## ##     ##   ## ##   ##
-// * ##     ## ##     ##  ##   ##  ##
-// * ##     ## ##     ## ##     ## ##
-// * ##     ## ##     ## ######### ##
-// * ##     ## ##     ## ##     ## ##
-// * ########   #######  ##     ## ########
-
-
-DUAL :: struct(a: Type) {
-    MV :: #run dual(a);
-}
-
-dual :: ($a: Type) -> Type {
-    b :: #run () -> [a.bases.count]B {
-        res : [a.bases.count]B = ---;
-        max :: (1 << N) - 1;
-        for ab, ai: a.bases {
-            res[ai] = ~ab & max;
-        }
-
-        cmp :: (a: B, b: B) -> s64 {
-            return cast(s64)(a > b);
-        }
-        bubble_sort(res, cmp);
-
-        return res;
-    }();
-
-    return MultiVector(..b);
-}
-
-dual :: (a: $_A/MultiVector) -> DUAL(_A).MV {
-    res : DUAL(_A).MV = ---;
-
-    #insert #run () -> string {
-        builder : String_Builder;
-
-        max :: (1 << N)-1;
-        for ab, ai: a.bases {
-            dual := ~ab & max;
-            for rb, ri: res.bases {
-                if dual != rb then continue;
-
-                print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
-            }
-        }
-
-        return builder_to_string(*builder);
-    }();
-
-    return res;
-}
-
-
 // * ########  ######## ##     ## ######## ########   ######  ########
 // * ##     ## ##       ##     ## ##       ##     ## ##    ## ##
 // * ##     ## ##       ##     ## ##       ##     ## ##       ##
@@ -494,12 +443,12 @@ outer :: ($a: Type, $b: Type) -> Type {
 
 meet :: outer;
 outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> OUTER(_A, _B).MV {
-    DEBUG :: false;
+    DEBUG :: true;
     grade :: #run hamming_weight(OUTER(_A, _B).MV.bases[0]);
 
     #if DEBUG {
               println("meet --------------------------");
-        defer println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+        defer println("meet ^^^^^^^^^^^^^^^^^^^^^^^^^^");
 
         println("a = %", fmt(a));
         println("b = %", fmt(b));
@@ -510,26 +459,6 @@ outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> OUTER(_A, _B).MV {
     return select(a * b, grade);
 }
 
-
-// * ########  ########  ######   ########  ########  ######   ######  #### ##     ## ########
-// * ##     ## ##       ##    ##  ##     ## ##       ##    ## ##    ##  ##  ##     ## ##
-// * ##     ## ##       ##        ##     ## ##       ##       ##        ##  ##     ## ##
-// * ########  ######   ##   #### ########  ######    ######   ######   ##  ##     ## ######
-// * ##   ##   ##       ##    ##  ##   ##   ##             ##       ##  ##   ##   ##  ##
-// * ##    ##  ##       ##    ##  ##    ##  ##       ##    ## ##    ##  ##    ## ##   ##
-// * ##     ## ########  ######   ##     ## ########  ######   ######  ####    ###    ########
-
-REGRESSIVE :: struct(a: Type, b: Type) {
-    MV :: #run regressive(a, b);
-}
-regressive :: ($a: Type, $b: Type) -> Type {
-    return #run dual(#run outer(#run dual(a), #run dual(b)));
-}
-
-join :: regressive;
-regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> REGRESSIVE(_A, _B).MV {
-    return dual(meet(dual(a), dual(b)));
-}
 
 
 // *  ######   ########  #######     ########  ########   #######  ########
@@ -741,4 +670,96 @@ comm :: ($a: Type, $b: Type) ->  Type {
 cross :: comm;
 comm :: (a: $_A/MultiVector, b: $_B/MultiVector) -> COMM(_A,_B).MV {
     return cast(T)0.5 * (a*b - b*a);
+}
+
+
+
+
+// * ########  ##     ##    ###    ##
+// * ##     ## ##     ##   ## ##   ##
+// * ##     ## ##     ##  ##   ##  ##
+// * ##     ## ##     ## ##     ## ##
+// * ##     ## ##     ## ######### ##
+// * ##     ## ##     ## ##     ## ##
+// * ########   #######  ##     ## ########
+
+
+DUAL :: struct(a: Type) {
+    MV :: #run dual(a);
+}
+
+dual :: ($a: Type) -> Type {
+    b :: #run () -> [a.bases.count]B {
+        res : [a.bases.count]B = ---;
+        max :: (1 << N) - 1;
+        for ab, ai: a.bases {
+            res[ai] = ~ab & max;
+        }
+
+        cmp :: (a: B, b: B) -> s64 {
+            return cast(s64)(a > b);
+        }
+        bubble_sort(res, cmp);
+
+        return res;
+    }();
+
+    return MultiVector(..b);
+}
+
+dual :: (a: $_A/MultiVector) -> DUAL(_A).MV {
+    res : DUAL(_A).MV = ---;
+
+    #insert #run () -> string {
+        builder : String_Builder;
+
+        max :: (1 << N)-1;
+        for ab, ai: a.bases {
+            dual := ~ab & max;
+            for rb, ri: res.bases {
+                if dual != rb then continue;
+
+                print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
+            }
+        }
+
+        return builder_to_string(*builder);
+    }();
+
+    return res;
+}
+
+
+// * ########  ########  ######   ########  ########  ######   ######  #### ##     ## ########
+// * ##     ## ##       ##    ##  ##     ## ##       ##    ## ##    ##  ##  ##     ## ##
+// * ##     ## ##       ##        ##     ## ##       ##       ##        ##  ##     ## ##
+// * ########  ######   ##   #### ########  ######    ######   ######   ##  ##     ## ######
+// * ##   ##   ##       ##    ##  ##   ##   ##             ##       ##  ##   ##   ##  ##
+// * ##    ##  ##       ##    ##  ##    ##  ##       ##    ## ##    ##  ##    ## ##   ##
+// * ##     ## ########  ######   ##     ## ########  ######   ######  ####    ###    ########
+
+REGRESSIVE :: struct(a: Type, b: Type) {
+    MV :: #run regressive(a, b);
+}
+regressive :: ($a: Type, $b: Type) -> Type {
+    return #run dual(#run outer(#run dual(a), #run dual(b)));
+}
+
+join :: regressive;
+regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> REGRESSIVE(_A, _B).MV {
+    DEBUG :: true;
+    #if DEBUG {
+        println(      "join/regressive ---------------------");
+        defer println("join/regressive ^^^^^^^^^^^^^^^^^^^^^");
+        println("a = %", fmt(a));
+        println("b = %", fmt(b));
+        println("dual a = %", fmt(dual(a)));
+        println("dual b = %", fmt(dual(b)));
+        r := meet(dual(a), dual(b));
+        println("Point == type_of(r): %", Point == type_of(r));
+        println("Point : %", Point);
+        println("meet : % = %", type_of(r), r);
+        // println("     = %", fmt_euclid(r));
+    }
+    return dual(meet(dual(a), dual(b)));
 }

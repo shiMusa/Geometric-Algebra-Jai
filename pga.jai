@@ -3,16 +3,23 @@
 // * here  <>  cheat sheet
 // * e3    <>  e0
 
-Point     :: #run type_of(e23 + e31 + e12);
-Direction :: #run type_of(e23 + e31);
-Line      :: #run type_of(e1 + e2 + e3);
-
 #run {
-    println("2D-PGA:");
-    println("Point     = %", Point);
-    println("Direction = %", Direction);
-    println("Line      = %", Line);
+    println("%D-PGA:", POS);
 }
+
+// * 2D-PGA
+#if POS == 2 {
+    Point     :: #run type_of(e23 + e31 + e12);
+    Direction :: #run type_of(e23 + e31);
+    Line      :: #run type_of(e1 + e2 + e3);
+    
+    #run {
+        println("Point     = %", Point);
+        println("Direction = %", Direction);
+        println("Line      = %", Line);
+    }
+}
+
 
 line :: (x: T, y: T, c: T = zero) -> Line {
     res : Line  = ---;
@@ -118,4 +125,36 @@ project :: (ln: Line, onto_point: Point) -> Line {
 
 orthogonal_direction :: (to_line: Line) -> Direction {
     return direction(polar(to_line));
+}
+
+norm :: (l: Line) -> T {
+    return sqrt(l.values[0]*l.values[0] + l.values[1]*l.values[1]);
+}
+norm :: (p: Point) -> T {
+    return abs(p.values[0]);
+}
+ideal :: (p: Point) -> T {
+    return abs(p.values[1]*p.values[1] + p.values[2]*p.values[2]);
+}
+ideal :: inline (l: Line) -> T {
+    return l.values[2];
+}
+ideal :: inline (pseudo_scalar: MV_I) -> T {
+    return pseudo_scalar.values[0];
+}
+
+
+distance :: (a: Point, b: Point) -> T {
+    return norm(join(a,b));
+}
+angle :: (a: Line, b: Line) -> T {
+    an := a/norm(a);
+    bn := b/norm(b);
+    return arccos(dot(an,bn));
+}
+// * for parallel lines
+distance :: (a: Line, b: Line) -> T {
+    an := a/norm(a);
+    bn := b/norm(b);
+    return ideal(meet(an,bn));
 }

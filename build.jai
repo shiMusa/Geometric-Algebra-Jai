@@ -14,11 +14,11 @@ build :: () {
 
     args := options.compile_time_command_line;
     print("\nargs: %\n", args);
-    filename := args[0];
+    filename := args[1];
 
     options.output_executable_name = filename;
     
-    // activate inlining
+    // * activate inlining
     options.enable_bytecode_inliner = true;
 
     // options.optimization_level = .RELEASE;
@@ -26,7 +26,7 @@ build :: () {
     set_build_options(options, w);
 
     compiler_begin_intercept(w);
-    add_build_file(sprint("%.jai", filename), w);
+    add_build_file(filename, w);
     message_loop();
     compiler_end_intercept(w);
 

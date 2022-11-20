@@ -56,7 +56,7 @@ main :: () {
         k2 *= k1;
     }
 
-    v3_dual := dual(v3);
+    v3_dual := dual_polar(v3);
     mv_print("v3_dual", v3_dual);
 
     v3_dual_reverse := reverse(v3_dual);
@@ -67,7 +67,7 @@ main :: () {
     println("select 2 of v3_dual_reverse: %", fmt(select(v3_dual_reverse, 2)));
     println("select 3 of v3_dual_reverse: %", fmt(select(v3_dual_reverse, 3)));
 
-    println("polar of v3: %", fmt(polar(v3)));
+    println("polar of v3: %", fmt(dual_polar(v3)));
 
     println("v3 * k0 = %", fmt(v3*k0));
     println("meet of v3 and k0: %", fmt(meet(v3, k0)));
@@ -97,7 +97,7 @@ main :: () {
     println("e1 * e2 : % = %, e2 * e1 : % = %", type_of(e1*e2), fmt(e1*e2), type_of(e2*e1), fmt(e2*e1));
     println("e1 * e2 * e1 : % = %, e2 * e1 * e1 : % = %", type_of(e1*e2*e1), fmt(e1*e2*e1), type_of(e2*e1*e1), fmt(e2*e1*e1));
 
-    // #if POS == 2 && NEG == 0 && ZER == 1 {
+    #if POS == 2 && NEG == 0 && ZER == 1 {
         println("2D PGA");
 
         l := join(point(-1.0, 0.0), point(1.0, 0.0));
@@ -120,5 +120,5 @@ main :: () {
         println("distance between % and %: %", fmt_euclid(p), fmt_euclid(p2), distance(p, p2));
         l2 := join(point(3.0, 42.0), point(-10.1, 42.0));
         println("distance between % and % = %", fmt_euclid(l), fmt_euclid(l2), distance(l,l2));
-    // }
+    }
 }

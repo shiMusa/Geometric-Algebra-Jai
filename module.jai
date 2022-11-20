@@ -33,7 +33,7 @@ fmt :: inline (x: T) -> string {
     return sprint("%", x);
 }
 
-fmt :: (n: B) -> string {
+fmt :: (n: B, $dual:= false) -> string {
     builder: String_Builder;
 
     if n == 0
@@ -42,8 +42,11 @@ fmt :: (n: B) -> string {
     indx := 1;
     x := n;
     while x > 0 {
-        if x & 1
+        if x & 1 #if dual {
+            print_to_builder(*builder, "E%", indx);
+        } else {
             print_to_builder(*builder, "e%", indx);
+        }
         x = x >> 1;
         indx += 1;
     }
@@ -59,7 +62,14 @@ fmt :: (n: B) -> string {
 // *  ##     ## ##     ## ##          ##     ##    ## ##   ##       ##    ##    ##    ##     ## ##    ## 
 // *  ##     ##  #######  ########    ##    ####    ###    ########  ######     ##     #######  ##     ## 
 
-MultiVector :: struct(bases: ..B) {
+assert_duality :: inline (a: $_A/MultiVector, b: $_B/MultiVector) #expand {
+    #run assert(
+        a.poincare == b.poincare, 
+        "Cannot add multivectors of different duality: \na Poincare dual: %\nb Poincare dual: %", 
+        a.poincare, b.poincare);
+}
+
+MultiVector :: struct(bases: ..B, poincare: bool = false) {
     values: [bases.count]T;
 }
 
@@ -151,7 +161,7 @@ fmt :: (mv: $V/MultiVector) -> string {
     for b, i: V.bases {
         if i > 0 && mv.values[i] >= 0
             append(*builder, " +");
-        print_to_builder(*builder, " %'%", mv.values[i], fmt(b));
+        print_to_builder(*builder, " %'%", mv.values[i], fmt(b, V.poincare));
     }
 
     return builder_to_string(*builder);
@@ -316,6 +326,7 @@ add :: ($atype: Type, $btype: Type) -> Type {
 
 
 operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> ADD(_A, _B).MV {
+    assert_duality(a,b);
     res : ADD(_A, _B).MV;
     // * assuming the bases are sorted from small to large value
     index_a := 0;
@@ -329,6 +340,7 @@ operator + :: (a: $_A/MultiVector, b: $_B/MultiVector) -> ADD(_A, _B).MV {
     return res;
 }
 operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> ADD(_A, _B).MV {
+    assert_duality(a,b);
     res : ADD(_A, _B).MV;
     // * assuming the bases are sorted from small to large value
     index_a := 0;
@@ -345,17 +357,17 @@ operator - :: (a: $_A/MultiVector, b: $_B/MultiVector) -> ADD(_A, _B).MV {
 
 
 operator + :: (a: $_A/MultiVector, b: T) -> ADD(MultiVector(0), _A).MV #symmetric {
-    tmp : MultiVector(0) = ---;
+    tmp : MultiVector(0, poincare=a.poincare) = ---;
     tmp.values[0] = b;
     return a + tmp;
 }
 operator - :: (a: $_A/MultiVector, b: T) -> ADD(MultiVector(0), _A).MV {
-    tmp : MultiVector(0) = ---;
+    tmp : MultiVector(0, poincare=a.poincare) = ---;
     tmp.values[0] = b;
     return a - tmp;
 }
 operator - :: (b: T, a: $_A/MultiVector) -> ADD(MultiVector(0), _A).MV {
-    tmp : MultiVector(0) = ---;
+    tmp : MultiVector(0, poincare=a.poincare) = ---;
     tmp.values[0] = b;
     return tmp - a;
 }
@@ -404,24 +416,6 @@ reverse :: (a: $_A/MultiVector) -> _A {
 }
 
 
-// * ########   #######  ##          ###    ########
-// * ##     ## ##     ## ##         ## ##   ##     ##
-// * ##     ## ##     ## ##        ##   ##  ##     ##
-// * ########  ##     ## ##       ##     ## ########
-// * ##        ##     ## ##       ######### ##   ##
-// * ##        ##     ## ##       ##     ## ##    ##
-// * ##         #######  ######## ##     ## ##     ##
-
-POLAR :: struct(a: Type) {
-    MV :: #run polar(a);
-}
-polar :: ($a: Type) -> Type {
-    return geo(a, type_of(eI));
-}
-polar :: inline (a: $_A/MultiVector) -> POLAR(_A).MV {
-    return a * eI;
-}
-
 
 // *  #######  ##     ## ######## ######## ########
 // * ##     ## ##     ##    ##    ##       ##     ##
@@ -443,6 +437,7 @@ outer :: ($a: Type, $b: Type) -> Type {
 
 meet :: outer;
 outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> OUTER(_A, _B).MV {
+    assert_duality(a,b);
     DEBUG :: true;
     grade :: #run hamming_weight(OUTER(_A, _B).MV.bases[0]);
 
@@ -535,6 +530,7 @@ operator * :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
 
 
 geo :: (a: $_A/MultiVector, b: $_B/MultiVector) -> GEO(_A,_B).MV {
+    assert_duality(a,b);
     res : GEO(_A,_B).MV;
     // * assuming the bases are sorted from small to large value
 
@@ -637,6 +633,7 @@ inner :: ($a: Type, $b: Type) -> Type {
 
 dot :: inner;
 inner :: (a: $_A/MultiVector, b: $_B/MultiVector) -> INNER(_A, _B).MV {
+    assert_duality(a,b);
     DEBUG :: false;
     grade_a :: #run hamming_weight(a.bases[a.bases.count-1]);
     grade_b :: #run hamming_weight(b.bases[b.bases.count-1]);
@@ -669,7 +666,37 @@ comm :: ($a: Type, $b: Type) ->  Type {
 
 cross :: comm;
 comm :: (a: $_A/MultiVector, b: $_B/MultiVector) -> COMM(_A,_B).MV {
+    assert_duality(a,b);
     return cast(T)0.5 * (a*b - b*a);
+}
+
+
+
+// * ########  ##     ##    ###    ##
+// * ##     ## ##     ##   ## ##   ##
+// * ##     ## ##     ##  ##   ##  ##
+// * ##     ## ##     ## ##     ## ##
+// * ##     ## ##     ## ######### ##
+// * ##     ## ##     ## ##     ## ##
+// * ########   #######  ##     ## ########
+
+// * ########   #######  ##          ###    ########  #### ######## ##    ##
+// * ##     ## ##     ## ##         ## ##   ##     ##  ##     ##     ##  ##
+// * ##     ## ##     ## ##        ##   ##  ##     ##  ##     ##      ####
+// * ########  ##     ## ##       ##     ## ########   ##     ##       ##
+// * ##        ##     ## ##       ######### ##   ##    ##     ##       ##
+// * ##        ##     ## ##       ##     ## ##    ##   ##     ##       ##
+// * ##         #######  ######## ##     ## ##     ## ####    ##       ##
+
+
+POLAR :: struct(a: Type) {
+    MV :: #run polar(a);
+}
+polar :: ($a: Type) -> Type {
+    return geo(type_of(eI), a);
+}
+dual_polar :: inline (a: $_A/MultiVector) -> POLAR(_A).MV {
+    return eI * a;
 }
 
 
@@ -683,12 +710,20 @@ comm :: (a: $_A/MultiVector, b: $_B/MultiVector) -> COMM(_A,_B).MV {
 // * ##     ## ##     ## ##     ## ##
 // * ########   #######  ##     ## ########
 
+// * ########   #######  #### ##    ##  ######     ###    ########  ########
+// * ##     ## ##     ##  ##  ###   ## ##    ##   ## ##   ##     ## ##      
+// * ##     ## ##     ##  ##  ####  ## ##        ##   ##  ##     ## ##      
+// * ########  ##     ##  ##  ## ## ## ##       ##     ## ########  ######  
+// * ##        ##     ##  ##  ##  #### ##       ######### ##   ##   ##      
+// * ##        ##     ##  ##  ##   ### ##    ## ##     ## ##    ##  ##      
+// * ##         #######  #### ##    ##  ######  ##     ## ##     ## ########
 
-DUAL :: struct(a: Type) {
-    MV :: #run dual(a);
+
+POINCARE :: struct(a: Type) {
+    MV :: #run poincare(a);
 }
 
-dual :: ($a: Type) -> Type {
+poincare :: ($a: Type) -> Type {
     b :: #run () -> [a.bases.count]B {
         res : [a.bases.count]B = ---;
         max :: (1 << N) - 1;
@@ -704,11 +739,73 @@ dual :: ($a: Type) -> Type {
         return res;
     }();
 
-    return MultiVector(..b);
+    return MultiVector(..b, poincare=!a.poincare);
 }
 
-dual :: (a: $_A/MultiVector) -> DUAL(_A).MV {
-    res : DUAL(_A).MV = ---;
+dual_poincare :: (a: $_A/MultiVector) -> POINCARE(_A).MV {
+    res : POINCARE(_A).MV = ---;
+
+    #insert #run () -> string {
+        builder : String_Builder;
+
+        max :: (1 << N)-1;
+        for ab, ai: a.bases {
+            dual := ~ab & max;
+            for rb, ri: res.bases {
+                if dual != rb then continue;
+
+                print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
+            }
+        }
+
+        return builder_to_string(*builder); // * flip duality bit
+    }();
+
+    return res;
+}
+
+
+// * ########  ##     ##    ###    ##
+// * ##     ## ##     ##   ## ##   ##
+// * ##     ## ##     ##  ##   ##  ##
+// * ##     ## ##     ## ##     ## ##
+// * ##     ## ##     ## ######### ##
+// * ##     ## ##     ## ##     ## ##
+// * ########   #######  ##     ## ########
+
+// * ##     ##  #######  ########   ######   ########
+// * ##     ## ##     ## ##     ## ##    ##  ##
+// * ##     ## ##     ## ##     ## ##        ##
+// * ######### ##     ## ##     ## ##   #### ######
+// * ##     ## ##     ## ##     ## ##    ##  ##
+// * ##     ## ##     ## ##     ## ##    ##  ##
+// * ##     ##  #######  ########   ######   ########
+
+HODGE :: struct(a: Type) {
+    MV :: #run hodge(a);
+}
+
+hodge :: ($a: Type) -> Type {
+    b :: #run () -> [a.bases.count]B {
+        res : [a.bases.count]B = ---;
+        max :: (1 << N) - 1;
+        for ab, ai: a.bases {
+            res[ai] = ~ab & max;
+        }
+
+        cmp :: (a: B, b: B) -> s64 {
+            return cast(s64)(a > b);
+        }
+        bubble_sort(res, cmp);
+
+        return res;
+    }();
+
+    return MultiVector(..b, poincare=a.poincare); // * same duality bit
+}
+
+dual_hodge :: (a: $_A/MultiVector) -> HODGE(_A).MV {
+    res : HODGE(_A).MV = ---;
 
     #insert #run () -> string {
         builder : String_Builder;
@@ -742,24 +839,25 @@ REGRESSIVE :: struct(a: Type, b: Type) {
     MV :: #run regressive(a, b);
 }
 regressive :: ($a: Type, $b: Type) -> Type {
-    return #run dual(#run outer(#run dual(a), #run dual(b)));
+    return #run hodge(#run outer(#run hodge(a), #run hodge(b)));
 }
 
 join :: regressive;
 regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> REGRESSIVE(_A, _B).MV {
+    assert_duality(a,b);
     DEBUG :: true;
     #if DEBUG {
         println(      "join/regressive ---------------------");
         defer println("join/regressive ^^^^^^^^^^^^^^^^^^^^^");
         println("a = %", fmt(a));
         println("b = %", fmt(b));
-        println("dual a = %", fmt(dual(a)));
-        println("dual b = %", fmt(dual(b)));
-        r := meet(dual(a), dual(b));
+        println("dual a = %", fmt(dual_hodge(a)));
+        println("dual b = %", fmt(dual_hodge(b)));
+        r := meet(dual_hodge(a), dual_hodge(b));
         println("Point == type_of(r): %", Point == type_of(r));
         println("Point : %", Point);
         println("meet : % = %", type_of(r), r);
         // println("     = %", fmt_euclid(r));
     }
-    return dual(meet(dual(a), dual(b)));
+    return dual_hodge(meet(dual_hodge(a), dual_hodge(b)));
 }

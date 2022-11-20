@@ -124,7 +124,7 @@ project :: (ln: Line, onto_point: Point) -> Line {
 }
 
 orthogonal_direction :: (to_line: Line) -> Direction {
-    return direction(polar(to_line));
+    return direction(dual_polar(to_line));
 }
 
 norm :: (l: Line) -> T {

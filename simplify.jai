@@ -133,6 +133,15 @@ get_op_idx :: (id: ID) -> int {
     return i;
 }
 
+
+// *  ######  #### ##     ## ########  ##       #### ######## ##    ##
+// * ##    ##  ##  ###   ### ##     ## ##        ##  ##        ##  ##
+// * ##        ##  #### #### ##     ## ##        ##  ##         ####
+// *  ######   ##  ## ### ## ########  ##        ##  ######      ##
+// *       ##  ##  ##     ## ##        ##        ##  ##          ##
+// * ##    ##  ##  ##     ## ##        ##        ##  ##          ##
+// *  ######  #### ##     ## ##        ######## #### ##          ##
+
 simplify :: (id: ID) -> ID {
     if types[id.val] == .OP {
         i := get_op_idx(id);
@@ -176,13 +185,91 @@ simplify :: (id: ID) -> ID {
 
 
 
+// *  ######   #######  ##     ## ########  #### ##       ########  ########
+// * ##    ## ##     ## ###   ### ##     ##  ##  ##       ##     ## ##
+// * ##       ##     ## #### #### ##     ##  ##  ##       ##     ## ##
+// * ##       ##     ## ## ### ## ########   ##  ##       ##     ## ######
+// * ##       ##     ## ##     ## ##         ##  ##       ##     ## ##
+// * ##    ## ##     ## ##     ## ##         ##  ##       ##     ## ##
+// *  ######   #######  ##     ## ##        #### ######## ########  ########
+
+get_vars :: (id: ID) -> [..]int {
+    res : [..]int;
+
+    if types[id.val] == .VAR {
+        array_add_if_unique(*res, id.val);
+    }
+    if types[id.val] == .OP {
+        i := get_op_idx(id);
+        ids := op_args[i];
+
+        for get_vars(ids[0])
+            array_add_if_unique(*res, it);
+
+        for get_vars(ids[1])
+            array_add_if_unique(*res, it);
+    }
+
+    return res;
+}
+
+compile :: (id: ID) -> string {
+    builder : String_Builder;
+
+    if types[id.val] == .VAR
+        print_to_builder(*builder, "v%", id.val);
+    else if types[id.val] == .OP {
+        i := get_op_idx(id);
+        type := op_type[i];
+        args := op_args[i];
+        s0 := compile(args[0]);
+        s1 := compile(args[1]);
+
+        if type == .ADD
+            print_to_builder(*builder, "% + %", s0, s1);
+        else if type == .MUL
+            print_to_builder(*builder, "(%) * (%)", s0, s1);
+    }
+
+    return builder_to_string(*builder);
+}
+
+make_function :: (name: string, id: ID) -> string {
+    builder : String_Builder;
+
+    print_to_builder(*builder, "% :: (", name);
+
+    vars := get_vars(id);
+    for vars {
+        print_to_builder(*builder, "v%: float", it);
+        if it_index < vars.count-1 {
+            append(*builder, ", ");
+        }
+    }
+
+    append(*builder, ") -> float {\n");
+
+    print_to_builder(*builder, "    return %;\n}\n", compile(id));
+
+
+    return builder_to_string(*builder);
+}
+
+// * ##     ##    ###    #### ##    ##
+// * ###   ###   ## ##    ##  ###   ##
+// * #### ####  ##   ##   ##  ####  ##
+// * ## ### ## ##     ##  ##  ## ## ##
+// * ##     ## #########  ##  ##  ####
+// * ##     ## ##     ##  ##  ##   ###
+// * ##     ## ##     ## #### ##    ##
+
 main :: () {
     {
         x := foo(42.0);
         y := foo(0.313);
         z := foo(-1.0);
 
-        res := x * z + y * z;
+        res := x * z + y * z + y*z;
 
         println("res = %", res);
     }
@@ -206,5 +293,43 @@ main :: () {
         res2 := simplify(res);
         println("res2 = %", res2);
         println("%", str(res2));
+
+        func_src := compile(res2);
+        println("compiled code:\n%", func_src);
+
+        func := make_function("foo", res2);
+        println("generated function code:\n%", func);
     }
+
+    #insert #run () -> string {
+        x := var();
+        y := var();
+        z := var();
+        println("x = %", str(x));
+        println("y = %", str(y));
+        println("z = %", str(z));
+
+        println("x+y = %", str(x+y));
+        println("x*y = %", str(x*y));
+        println("x*y = %, reoccuring operator recognized?", str(x*y));
+
+        res := x*z + y*z + y*z;
+        
+        println("res = %", res);
+        println("%", str(res));
+
+        res2 := simplify(res);
+        println("res2 = %", res2);
+        println("%", str(res2));
+
+        func_src := compile(res2);
+        println("compiled code:\n%", func_src);
+
+        func := make_function("foo", res2);
+        println("generated function code:\n%", func);
+
+        return func;
+    }();
+
+    println("foo(-1.0, 42.0, 0.313, -1.0) = %", foo(-1.0, 42.0, 0.313));
 }

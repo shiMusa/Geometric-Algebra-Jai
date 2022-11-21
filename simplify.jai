@@ -364,7 +364,10 @@ main :: () {
         println("generated function code:\n%", func);
     }
 
-    #insert #run () -> string {
+
+    // * Now do the simplification during compile-time and generate the optimized
+    // * code; then call the optimized function `foo`.
+    #insert -> string {
         restart();
 
         x := var();
@@ -394,7 +397,7 @@ main :: () {
         println("generated function code:\n%", func);
 
         return func;
-    }();
+    };
 
     println("foo(-1.0, 42.0, 0.313, -1.0) = %", foo(42.0, 0.313, -1.0));
 }

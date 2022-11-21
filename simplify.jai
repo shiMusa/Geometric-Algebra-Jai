@@ -4,19 +4,19 @@
 
 
 
-Foo :: struct {
-    val: float;
+Foo :: struct(T: Type) {
+    val: T;
 }
-foo :: (val: float) -> Foo {
-    res : Foo = ---;
+foo :: (val: $T) -> Foo(T) {
+    res : Foo(T) = ---;
     res.val = val;
     return res;
 }
 
-operator + :: (a: Foo, b: Foo) -> Foo {
+operator + :: (a: Foo($T), b: Foo(T)) -> Foo(T) {
     return foo(a.val + b.val);
 }
-operator * :: (a: Foo, b: Foo) -> Foo {
+operator * :: (a: Foo($T), b: Foo(T)) -> Foo(T) {
     return foo(a.val * b.val);
 }
 
@@ -336,35 +336,19 @@ main :: () {
     {
         restart();
 
-        x := var();
-        y := var();
-        z := var();
-        println("x = %", str(x));
-        println("y = %", str(y));
-        println("z = %", str(z));
+        // * since `Foo` takes any `T: Type`, we can just give it the symbolic `ID`
+        // * instead, and all the math will be constructed symbolically
+        x := foo(var());
+        y := foo(var());
+        z := foo(var());
 
-        println("x+y = %", str(x+y));
-        println("x*y = %", str(x*y));
-        println("x*y = %, reoccuring operator recognized?", str(x*y));
+        res := x * z + y * z + y*z;
 
-        res := x*z + y*z + y*z;
-        
-        println("res = %", res);
-        println("%", str(res));
-
-        res2 := simplify(res);
-        println("res2 = %", res2);
-        println("%", str(res2));
-
-        func_src := compile(res2);
-        println("compiled code:\n%", func_src);
-
-        func := make_function("foo", res2);
-        println("generated function code:\n%", func);
+        println("res = %\n%", res, str(res.val));
     }
 
 
-    // * Now do the simplification during compile-time and generate the optimized
+    // * Do the simplification during compile-time and generate the optimized
     // * code; then call the optimized function `foo`.
     #insert -> string {
         restart();

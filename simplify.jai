@@ -1,4 +1,5 @@
 #import "Basic";
+#import "Sort";
 #load "utils.jai";
 
 
@@ -23,6 +24,33 @@ operator * :: (a: Foo, b: Foo) -> Foo {
 
 
 
+
+// *  ######  ##    ## ##     ## ########   #######  ##       ####  ######
+// * ##    ##  ##  ##  ###   ### ##     ## ##     ## ##        ##  ##    ##
+// * ##         ####   #### #### ##     ## ##     ## ##        ##  ##
+// *  ######     ##    ## ### ## ########  ##     ## ##        ##  ##
+// *       ##    ##    ##     ## ##     ## ##     ## ##        ##  ##
+// * ##    ##    ##    ##     ## ##     ## ##     ## ##        ##  ##    ##
+// *  ######     ##    ##     ## ########   #######  ######## ####  ######
+
+Symbolic :: struct {
+    types : [..]Types;
+    op_idx  : [..]int;
+    op_type : [..]OpTypes;
+    op_args : [..][2]ID;
+}
+restart :: () {
+    using context.sym;
+
+    array_reset(*types);
+    array_reset(*op_idx);
+    array_reset(*op_type);
+    array_reset(*op_args);
+}
+
+#add_context sym: Symbolic;
+
+
 ID :: struct {
     val: int;
 }
@@ -39,10 +67,12 @@ Types :: enum {
     VAR;
     OP;
 }
-types : [..]Types; // * id is index
+// types : [..]Types; // * id is index
 
 
 var :: () -> ID {
+    using context.sym;
+
     i := types.count;
     array_add(*types, .VAR);
     return id(i);
@@ -53,12 +83,14 @@ OpTypes :: enum {
     ADD;
     MUL;
 }
-op_idx  : [..]int;
-op_type : [..]OpTypes;
-op_args : [..][2]ID;
+// op_idx  : [..]int;
+// op_type : [..]OpTypes;
+// op_args : [..][2]ID;
 
 
 op :: (a: ID, b: ID, type: OpTypes) -> ID {
+    using context.sym;
+    
     // * check, if this operation already exists
     for oi, oii: op_args {
         if oi[0] == a && oi[1] == b && op_type[oii] == type {
@@ -93,6 +125,17 @@ operator + :: (a: ID, b: ID) -> ID {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
 indent :: (num: int) -> string {
     builder : String_Builder;
 
@@ -104,6 +147,8 @@ indent :: (num: int) -> string {
 }
 
 str :: (id: ID, shift := 0) -> string {
+    using context.sym;
+    
     // println("str(%, %)", id, shift);
     ind := indent(shift);
 
@@ -128,6 +173,8 @@ str :: (id: ID, shift := 0) -> string {
 
 
 get_op_idx :: (id: ID) -> int {
+    using context.sym;
+    
     found, i := array_find(op_idx, id.val);
     assert(found, "operation index not found");
     return i;
@@ -143,6 +190,8 @@ get_op_idx :: (id: ID) -> int {
 // *  ######  #### ##     ## ##        ######## #### ##          ##
 
 simplify :: (id: ID) -> ID {
+    using context.sym;
+    
     if types[id.val] == .OP {
         i := get_op_idx(id);
         ids := op_args[i];
@@ -194,6 +243,8 @@ simplify :: (id: ID) -> ID {
 // *  ######   #######  ##     ## ##        #### ######## ########  ########
 
 get_vars :: (id: ID) -> [..]int {
+    using context.sym;
+    
     res : [..]int;
 
     if types[id.val] == .VAR {
@@ -210,10 +261,18 @@ get_vars :: (id: ID) -> [..]int {
             array_add_if_unique(*res, it);
     }
 
+
+    cmp :: inline (a: int, b: int) -> s64 {
+        return a - b;
+    }
+    bubble_sort(res, cmp);
+
     return res;
 }
 
 compile :: (id: ID) -> string {
+    using context.sym;
+    
     builder : String_Builder;
 
     if types[id.val] == .VAR
@@ -235,6 +294,8 @@ compile :: (id: ID) -> string {
 }
 
 make_function :: (name: string, id: ID) -> string {
+    using context.sym;
+    
     builder : String_Builder;
 
     print_to_builder(*builder, "% :: (", name);
@@ -274,6 +335,8 @@ main :: () {
         println("res = %", res);
     }
     {
+        restart();
+
         x := var();
         y := var();
         z := var();
@@ -302,6 +365,8 @@ main :: () {
     }
 
     #insert #run () -> string {
+        restart();
+
         x := var();
         y := var();
         z := var();
@@ -331,5 +396,5 @@ main :: () {
         return func;
     }();
 
-    println("foo(-1.0, 42.0, 0.313, -1.0) = %", foo(-1.0, 42.0, 0.313));
+    println("foo(-1.0, 42.0, 0.313, -1.0) = %", foo(42.0, 0.313, -1.0));
 }

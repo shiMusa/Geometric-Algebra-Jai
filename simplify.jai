@@ -21,10 +21,6 @@ operator * :: (a: Foo($T), b: Foo(T)) -> Foo(T) {
 }
 
 
-
-
-
-
 // *  ######  ##    ## ##     ## ########   #######  ##       ####  ######
 // * ##    ##  ##  ##  ###   ### ##     ## ##     ## ##        ##  ##    ##
 // * ##         ####   #### #### ##     ## ##     ## ##        ##  ##
@@ -33,9 +29,18 @@ operator * :: (a: Foo($T), b: Foo(T)) -> Foo(T) {
 // * ##    ##    ##    ##     ## ##     ## ##     ## ##        ##  ##    ##
 // *  ######     ##    ##     ## ########   #######  ######## ####  ######
 
+Types :: enum {
+    VAR;
+    OP;
+}
+
+
 Symbolic :: struct {
     types : [..]Types;
-    op_idx  : [..]int;
+    extra : [..]int;
+
+    // * Operators
+    op_back : [..]int;
     op_type : [..]OpTypes;
     op_args : [..][2]ID;
 }
@@ -43,9 +48,11 @@ restart :: () {
     using context.sym;
 
     array_reset(*types);
-    array_reset(*op_idx);
+    array_reset(*extra);
+
     array_reset(*op_type);
     array_reset(*op_args);
+    array_reset(*op_back);
 }
 
 #add_context sym: Symbolic;
@@ -63,18 +70,12 @@ operator== :: inline (a: ID, b: ID) -> bool {
     return a.val == b.val;
 }
 
-Types :: enum {
-    VAR;
-    OP;
-}
-// types : [..]Types; // * id is index
-
-
 var :: () -> ID {
     using context.sym;
 
     i := types.count;
     array_add(*types, .VAR);
+    array_add(*extra, -1);
     return id(i);
 }
 
@@ -83,9 +84,6 @@ OpTypes :: enum {
     ADD;
     MUL;
 }
-// op_idx  : [..]int;
-// op_type : [..]OpTypes;
-// op_args : [..][2]ID;
 
 
 op :: (a: ID, b: ID, type: OpTypes) -> ID {
@@ -94,7 +92,7 @@ op :: (a: ID, b: ID, type: OpTypes) -> ID {
     // * check, if this operation already exists
     for oi, oii: op_args {
         if oi[0] == a && oi[1] == b && op_type[oii] == type {
-            return id(op_idx[oii]);
+            return id(op_back[oii]);
         }
     }
 
@@ -104,11 +102,13 @@ op :: (a: ID, b: ID, type: OpTypes) -> ID {
     tmp[1] = b;
     
     i := types.count;
-    array_add(*types, .OP);
-    
     j := op_type.count;
+    
+    array_add(*types, .OP);
+    array_add(*extra, j);
+
+    array_add(*op_back, i);
     array_add(*op_type, type);
-    array_add(*op_idx, i);
     array_add(*op_args, tmp);
 
     res := id(i);
@@ -126,14 +126,13 @@ operator + :: (a: ID, b: ID) -> ID {
 
 
 
-
-
-
-
-
-
-
-
+// *  ######  ######## ########
+// * ##    ##    ##    ##     ##
+// * ##          ##    ##     ##
+// *  ######     ##    ########
+// *       ##    ##    ##   ##
+// * ##    ##    ##    ##    ##
+// *  ######     ##    ##     ##
 
 
 indent :: (num: int) -> string {
@@ -149,7 +148,6 @@ indent :: (num: int) -> string {
 str :: (id: ID, shift := 0) -> string {
     using context.sym;
     
-    // println("str(%, %)", id, shift);
     ind := indent(shift);
 
     builder : String_Builder;
@@ -160,7 +158,7 @@ str :: (id: ID, shift := 0) -> string {
         return builder_to_string(*builder);
 
     // * operation then
-    op_indx := get_op_idx(id);
+    op_indx := extra[id.val];
     print_to_builder(*builder, " - %\n", op_type[op_indx]);
     
     arg_ids := op_args[op_indx];
@@ -170,15 +168,6 @@ str :: (id: ID, shift := 0) -> string {
     return builder_to_string(*builder);
 }
 
-
-
-get_op_idx :: (id: ID) -> int {
-    using context.sym;
-    
-    found, i := array_find(op_idx, id.val);
-    assert(found, "operation index not found");
-    return i;
-}
 
 
 // *  ######  #### ##     ## ########  ##       #### ######## ##    ##
@@ -193,7 +182,7 @@ simplify :: (id: ID) -> ID {
     using context.sym;
     
     if types[id.val] == .OP {
-        i := get_op_idx(id);
+        i := extra[id.val];
         ids := op_args[i];
 
         // println("ids = %", ids);
@@ -204,8 +193,8 @@ simplify :: (id: ID) -> ID {
         if op_type[i] == .ADD {
 
             if types[ids[0].val] == .OP && types[ids[1].val] == .OP {
-                j0 := get_op_idx(ids[0]);
-                j1 := get_op_idx(ids[1]);
+                j0 := extra[ids[0].val];
+                j1 := extra[ids[1].val];
 
                 // println("j0 = %, j1 = %", j0, j1);
 
@@ -250,7 +239,7 @@ get_vars :: (id: ID) -> [..]int {
         array_add_if_unique(*res, id.val);
     }
     if types[id.val] == .OP {
-        i := get_op_idx(id);
+        i := extra[id.val];
         ids := op_args[i];
 
         for get_vars(ids[0])
@@ -277,7 +266,7 @@ compile :: (id: ID) -> string {
     if types[id.val] == .VAR
         print_to_builder(*builder, "v%", id.val);
     else if types[id.val] == .OP {
-        i := get_op_idx(id);
+        i := extra[id.val];
         type := op_type[i];
         args := op_args[i];
         s0 := compile(args[0]);

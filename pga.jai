@@ -11,7 +11,7 @@
 #if POS == 2 {
     Point     :: #run type_of(e23 + e31 + e12);
     Direction :: #run type_of(e23 + e31);
-    Line      :: #run type_of(e1 + e2 + e3);
+    Line      :: #run type_of(join(point(0.0,1.0), point(1.0,0.0)));
     
     #run {
         println("Point     = %", Point);
@@ -139,8 +139,10 @@ ideal :: (p: Point) -> T {
 ideal :: inline (l: Line) -> T {
     return l.values[2];
 }
-ideal :: inline (pseudo_scalar: MV_I) -> T {
-    return pseudo_scalar.values[0];
+#if Line != MV_I {
+    ideal :: inline (pseudo_scalar: MV_I) -> T {
+        return pseudo_scalar.values[0];
+    }
 }
 
 

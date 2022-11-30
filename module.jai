@@ -2,10 +2,13 @@
 #import "Math";
 #import "Sort";
 #load "utils.jai";
-#module_parameters(_POS: int, _NEG: int, _ZER: int, T := float32);
+#module_parameters(_POS: int, _NEG: int, _ZER: int, T := float32, _DEFAULT_DUAL:="poincare");
 POS :: _POS;
 NEG :: _NEG;
 ZER :: _ZER;
+#if _DEFAULT_DUAL == "poincare" then DEFAULT_DUAL :: DualType.POINCARE;
+#if _DEFAULT_DUAL == "hodge"    then DEFAULT_DUAL :: DualType.HODGE;
+#if _DEFAULT_DUAL == "polar"    then DEFAULT_DUAL :: DualType.POLAR;
 
 #if POS == 2 && NEG == 0 && ZER == 1 #load "pga.jai";
 
@@ -74,9 +77,19 @@ MultiVector :: struct(bases: ..B, poincare: bool = false) {
 }
 
 e0 :: MultiVector(0).{.[one]};
-eI :: MultiVector(1<<N - 1).{.[one]};
-MV_I :: MultiVector(1<<N - 1);
-#run println("eI : % = %", type_of(eI), fmt(eI));
+
+MV_I     :: MultiVector(1<<N - 1);
+// MV_I_inv :: MultiVector(1<<N - 1, poincare=true);
+
+
+eI :: MV_I.{.[one]};
+eI_polar :: #run ifx (eI*eI).values[0] < 0 then -1*eI else eI;
+EI :: eI_polar;
+
+#run {
+    println("eI       : % = %", type_of(eI), fmt(eI));
+    println("eI_polar : % = %", type_of(eI_polar), fmt(eI_polar));
+}
 
 #insert -> string {
     builder : String_Builder;
@@ -680,6 +693,51 @@ comm :: (a: $_A/MultiVector, b: $_B/MultiVector) -> COMM(_A,_B).MV {
 // * ##     ## ##     ## ##     ## ##
 // * ########   #######  ##     ## ########
 
+
+
+
+DualType :: enum {
+    POLAR;
+    POINCARE;
+    HODGE;
+}
+
+DUAL :: struct(a: Type, type: DualType) {
+    MV :: #run dual(a, type);
+}
+
+dual :: ($a: Type, $type:=DEFAULT_DUAL) -> Type {
+    #if type == .POLAR    then return dual_polar(a);
+    #if type == .POINCARE then return dual_neg_type(a, true);
+    #if type == .HODGE    then return dual_neg_type(a, false);
+}
+
+dual :: inline (a: $_A/MultiVector, $type:=DEFAULT_DUAL) -> DUAL(_A, type).MV {
+    #if type == .POLAR    then return dual_polar(a);
+    #if type == .POINCARE then return dual_poincare(a);
+    #if type == .HODGE    then return dual_hodge(a);
+}
+
+// TODO inverse dual
+
+
+INV_DUAL :: struct(a: Type, type: DualType) {
+    MV :: #run inv_dual(a, type);
+}
+
+inv_dual :: ($a: Type, $type:=DEFAULT_DUAL) -> Type {
+    #if type == .POLAR    then return inv_dual_polar(a);
+    #if type == .POINCARE then return dual_neg_type(a, true);
+    #if type == .HODGE    then return dual_neg_type(a, false);
+}
+
+inv_dual :: inline (a: $_A/MultiVector, $type:=DEFAULT_DUAL) -> INV_DUAL(_A, type).MV {
+    #if type == .POLAR    then return inv_dual_polar(a);
+    #if type == .POINCARE then return inv_dual_poincare(a);
+    #if type == .HODGE    then return inv_dual_hodge(a);
+}
+
+
 // * ########   #######  ##          ###    ########  #### ######## ##    ##
 // * ##     ## ##     ## ##         ## ##   ##     ##  ##     ##     ##  ##
 // * ##     ## ##     ## ##        ##   ##  ##     ##  ##     ##      ####
@@ -690,15 +748,25 @@ comm :: (a: $_A/MultiVector, b: $_B/MultiVector) -> COMM(_A,_B).MV {
 
 
 POLAR :: struct(a: Type) {
-    MV :: #run polar(a);
+    MV :: #run dual_polar(a);
 }
-polar :: ($a: Type) -> Type {
+dual_polar :: ($a: Type) -> Type {
     return geo(type_of(eI), a);
 }
 dual_polar :: inline (a: $_A/MultiVector) -> POLAR(_A).MV {
     return eI * a;
 }
 
+INV_POLAR :: struct(a: Type) {
+    MV :: #run inv_dual_polar(a);
+}
+inv_dual_polar :: ($a: Type) -> Type {
+    return geo(type_of(EI), a);
+}
+
+inv_dual_polar :: inline (a: $_A/MultiVector) -> INV_POLAR(_A).MV {
+    return EI * a;
+}
 
 
 
@@ -710,20 +778,7 @@ dual_polar :: inline (a: $_A/MultiVector) -> POLAR(_A).MV {
 // * ##     ## ##     ## ##     ## ##
 // * ########   #######  ##     ## ########
 
-// * ########   #######  #### ##    ##  ######     ###    ########  ########
-// * ##     ## ##     ##  ##  ###   ## ##    ##   ## ##   ##     ## ##      
-// * ##     ## ##     ##  ##  ####  ## ##        ##   ##  ##     ## ##      
-// * ########  ##     ##  ##  ## ## ## ##       ##     ## ########  ######  
-// * ##        ##     ##  ##  ##  #### ##       ######### ##   ##   ##      
-// * ##        ##     ##  ##  ##   ### ##    ## ##     ## ##    ##  ##      
-// * ##         #######  #### ##    ##  ######  ##     ## ##     ## ########
-
-
-POINCARE :: struct(a: Type) {
-    MV :: #run poincare(a);
-}
-
-poincare :: ($a: Type) -> Type {
+dual_neg_type :: ($a: Type, $poincare:=false) -> Type {
     b :: #run () -> [a.bases.count]B {
         res : [a.bases.count]B = ---;
         max :: (1 << N) - 1;
@@ -739,31 +794,96 @@ poincare :: ($a: Type) -> Type {
         return res;
     }();
 
-    return MultiVector(..b, poincare=!a.poincare);
+    #if poincare
+        return MultiVector(..b, poincare=!a.poincare);
+    else
+        return MultiVector(..b, poincare=a.poincare);
 }
+
+dual_construct_assignments :: ($a: Type, $res: Type) -> string {
+    builder : String_Builder;
+
+    max :: (1 << N)-1;
+    for ab, ai: a.bases {
+        dual := ~ab & max;
+        for rb, ri: res.bases {
+            if dual != rb then continue;
+
+            print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
+        }
+    }
+
+    return builder_to_string(*builder); // * flip duality bit
+}
+
+
+
+// * ########   #######  #### ##    ##  ######     ###    ########  ########
+// * ##     ## ##     ##  ##  ###   ## ##    ##   ## ##   ##     ## ##      
+// * ##     ## ##     ##  ##  ####  ## ##        ##   ##  ##     ## ##      
+// * ########  ##     ##  ##  ## ## ## ##       ##     ## ########  ######  
+// * ##        ##     ##  ##  ##  #### ##       ######### ##   ##   ##      
+// * ##        ##     ##  ##  ##   ### ##    ## ##     ## ##    ##  ##      
+// * ##         #######  #### ##    ##  ######  ##     ## ##     ## ########
+
+
+POINCARE :: struct(a: Type) {
+    // MV :: #run poincare(a);
+    MV :: #run dual_neg_type(a, poincare=true);
+}
+
+// poincare :: ($a: Type) -> Type {
+//     b :: #run () -> [a.bases.count]B {
+//         res : [a.bases.count]B = ---;
+//         max :: (1 << N) - 1;
+//         for ab, ai: a.bases {
+//             res[ai] = ~ab & max;
+//         }
+
+//         cmp :: (a: B, b: B) -> s64 {
+//             return cast(s64)(a > b);
+//         }
+//         bubble_sort(res, cmp);
+
+//         return res;
+//     }();
+
+//     return MultiVector(..b, poincare=!a.poincare);
+// }
 
 dual_poincare :: (a: $_A/MultiVector) -> POINCARE(_A).MV {
     res : POINCARE(_A).MV = ---;
 
-    #insert #run () -> string {
-        builder : String_Builder;
+    #insert #run dual_construct_assignments(_A, POINCARE(_A).MV);
 
-        max :: (1 << N)-1;
-        for ab, ai: a.bases {
-            dual := ~ab & max;
-            for rb, ri: res.bases {
-                if dual != rb then continue;
+    // #insert #run () -> string {
+    //     builder : String_Builder;
 
-                print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
-            }
-        }
+    //     max :: (1 << N)-1;
+    //     for ab, ai: a.bases {
+    //         dual := ~ab & max;
+    //         for rb, ri: res.bases {
+    //             if dual != rb then continue;
 
-        return builder_to_string(*builder); // * flip duality bit
-    }();
+    //             print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
+    //         }
+    //     }
+
+    //     return builder_to_string(*builder); // * flip duality bit
+    // }();
 
     return res;
 }
 
+INV_POINCARE :: struct(a: Type) {
+    MV :: #run dual_neg_type(a, poincare=true);
+}
+
+inv_dual_poincare :: (a: $_A/MultiVector) -> INV_POINCARE(_A).MV {
+    res : INV_POINCARE(_A).MV = ---;
+    #insert #run dual_construct_assignments(_A, INV_POINCARE(_A).MV);
+    return res;
+}
 
 // * ########  ##     ##    ###    ##
 // * ##     ## ##     ##   ## ##   ##
@@ -782,50 +902,62 @@ dual_poincare :: (a: $_A/MultiVector) -> POINCARE(_A).MV {
 // * ##     ##  #######  ########   ######   ########
 
 HODGE :: struct(a: Type) {
-    MV :: #run hodge(a);
+    // MV :: #run hodge(a);
+    MV :: #run dual_neg_type(a, poincare=false);
 }
 
-hodge :: ($a: Type) -> Type {
-    b :: #run () -> [a.bases.count]B {
-        res : [a.bases.count]B = ---;
-        max :: (1 << N) - 1;
-        for ab, ai: a.bases {
-            res[ai] = ~ab & max;
-        }
+// hodge :: ($a: Type) -> Type {
+//     b :: #run () -> [a.bases.count]B {
+//         res : [a.bases.count]B = ---;
+//         max :: (1 << N) - 1;
+//         for ab, ai: a.bases {
+//             res[ai] = ~ab & max;
+//         }
 
-        cmp :: (a: B, b: B) -> s64 {
-            return cast(s64)(a > b);
-        }
-        bubble_sort(res, cmp);
+//         cmp :: (a: B, b: B) -> s64 {
+//             return cast(s64)(a > b);
+//         }
+//         bubble_sort(res, cmp);
 
-        return res;
-    }();
+//         return res;
+//     }();
 
-    return MultiVector(..b, poincare=a.poincare); // * same duality bit
-}
+//     return MultiVector(..b, poincare=a.poincare); // * same duality bit
+// }
 
 dual_hodge :: (a: $_A/MultiVector) -> HODGE(_A).MV {
     res : HODGE(_A).MV = ---;
 
-    #insert #run () -> string {
-        builder : String_Builder;
+    #insert #run dual_construct_assignments(_A, HODGE(_A).MV);
 
-        max :: (1 << N)-1;
-        for ab, ai: a.bases {
-            dual := ~ab & max;
-            for rb, ri: res.bases {
-                if dual != rb then continue;
+    // #insert #run () -> string {
+    //     builder : String_Builder;
 
-                print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
-            }
-        }
+    //     max :: (1 << N)-1;
+    //     for ab, ai: a.bases {
+    //         dual := ~ab & max;
+    //         for rb, ri: res.bases {
+    //             if dual != rb then continue;
 
-        return builder_to_string(*builder);
-    }();
+    //             print_to_builder(*builder, "res.values[%] = a.values[%];\n", ri, ai);
+    //         }
+    //     }
+
+    //     return builder_to_string(*builder);
+    // }();
 
     return res;
 }
 
+INV_HODGE :: struct(a: Type) {
+    MV :: #run dual_neg_type(a, poincare=false);
+}
+
+inv_dual_hodge :: (a: $_A/MultiVector) -> INV_HODGE(_A).MV {
+    res : INV_HODGE(_A).MV = ---;
+    #insert #run dual_construct_assignments(_A, INV_HODGE(_A).MV);
+    return res;
+}
 
 // * ########  ########  ######   ########  ########  ######   ######  #### ##     ## ########
 // * ##     ## ##       ##    ##  ##     ## ##       ##    ## ##    ##  ##  ##     ## ##
@@ -835,17 +967,18 @@ dual_hodge :: (a: $_A/MultiVector) -> HODGE(_A).MV {
 // * ##    ##  ##       ##    ##  ##    ##  ##       ##    ## ##    ##  ##    ## ##   ##
 // * ##     ## ########  ######   ##     ## ########  ######   ######  ####    ###    ########
 
-REGRESSIVE :: struct(a: Type, b: Type) {
-    MV :: #run regressive(a, b);
+REGRESSIVE :: struct(a: Type, b: Type, $dual_type:=DEFAULT_DUAL) {
+    MV :: #run regressive(a, b, dual_type);
 }
-regressive :: ($a: Type, $b: Type) -> Type {
-    return #run hodge(#run outer(#run hodge(a), #run hodge(b)));
+regressive :: ($a: Type, $b: Type, $dual_type: DualType) -> Type {
+    // return #run hodge(#run outer(#run hodge(a), #run hodge(b)));
+    return #run inv_dual(#run outer(#run dual(a, dual_type), #run dual(b, dual_type)), dual_type);
 }
 
 join :: regressive;
-regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> REGRESSIVE(_A, _B).MV {
+regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector, $dual_type:=DEFAULT_DUAL) -> REGRESSIVE(_A, _B, dual_type).MV {
     assert_duality(a,b);
-    DEBUG :: true;
+    DEBUG :: false;
     #if DEBUG {
         println(      "join/regressive ---------------------");
         defer println("join/regressive ^^^^^^^^^^^^^^^^^^^^^");
@@ -859,5 +992,6 @@ regressive :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> REGRESSIVE(_A, 
         println("meet : % = %", type_of(r), r);
         // println("     = %", fmt_euclid(r));
     }
-    return dual_hodge(meet(dual_hodge(a), dual_hodge(b)));
+    // return dual_hodge(meet(dual_hodge(a), dual_hodge(b)));
+    return inv_dual(meet(dual(a, dual_type), dual(b, dual_type)), dual_type);
 }

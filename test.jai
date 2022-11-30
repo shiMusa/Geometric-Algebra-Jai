@@ -1,5 +1,5 @@
 #import "Basic";
-#import,file "module.jai"(2,0,1);
+#import,file "module.jai"(2,0,1,float32,"hodge");
 
 main :: () {
     println("e00 %", fmt(e0*e0));
@@ -100,7 +100,7 @@ main :: () {
     #if POS == 2 && NEG == 0 && ZER == 1 {
         println("2D PGA");
 
-        l := join(point(-1.0, 0.0), point(1.0, 0.0));
+        l := join(point(-1.0, 0.0), point(1.0, 0.0), .HODGE);
         p := point(0.5, 1.0);
         perp := orthogonal_line(l, p);
         intersection := meet(l, perp);
@@ -118,7 +118,7 @@ main :: () {
 
 
         println("distance between % and %: %", fmt_euclid(p), fmt_euclid(p2), distance(p, p2));
-        l2 := join(point(3.0, 42.0), point(-10.1, 42.0));
+        l2 := join(point(3.0, 42.0), point(-10.1, 42.0), .HODGE);
         println("distance between % and % = %", fmt_euclid(l), fmt_euclid(l2), distance(l,l2));
     }
 }

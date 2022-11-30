@@ -327,7 +327,8 @@ main :: () {
 
         // * since `Foo` takes any `T: Type`, we can just give it the symbolic `ID`
         // * instead, and all the math will be constructed symbolically
-        x := foo(var());
+        x : Foo(ID) = .{val = var()};
+        // x := foo(var());
         y := foo(var());
         z := foo(var());
 

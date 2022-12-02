@@ -100,7 +100,7 @@ main :: () {
     #if POS == 2 && NEG == 0 && ZER == 1 {
         println("2D PGA");
 
-        l := join(point(-1.0, 0.0), point(1.0, 0.0), .HODGE);
+        l := join(point(-1.0, 0.0), point(1.0, 0.0));
         p := point(0.5, 1.0);
         perp := orthogonal_line(l, p);
         intersection := meet(l, perp);
@@ -118,7 +118,7 @@ main :: () {
 
 
         println("distance between % and %: %", fmt_euclid(p), fmt_euclid(p2), distance(p, p2));
-        l2 := join(point(3.0, 42.0), point(-10.1, 42.0), .HODGE);
+        l2 := join(point(3.0, 42.0), point(-10.1, 42.0));
         println("distance between % and % = %", fmt_euclid(l), fmt_euclid(l2), distance(l,l2));
     }
 }

@@ -389,14 +389,14 @@ operator - :: (b: T, a: $_A/MultiVector) -> ADD(MultiVector(0), _A).MV {
 operator * :: (a: $_A/MultiVector, b: T) -> _A #symmetric {
     res : _A = ---;
     for a.values {
-        res.values[it_index] = b * it;
+        res.values[it_index] = it * b;
     }
     return res;
 }
 operator / :: (a: $_A/MultiVector, b: T) -> _A {
     res : _A = ---;
     for a.values {
-        res.values[it_index] = b / it;
+        res.values[it_index] = it / b;
     }
     return res;
 }
@@ -451,7 +451,7 @@ outer :: ($a: Type, $b: Type) -> Type {
 meet :: outer;
 outer :: inline (a: $_A/MultiVector, b: $_B/MultiVector) -> OUTER(_A, _B).MV {
     assert_duality(a,b);
-    DEBUG :: true;
+    DEBUG :: false;
     grade :: #run hamming_weight(OUTER(_A, _B).MV.bases[0]);
 
     #if DEBUG {

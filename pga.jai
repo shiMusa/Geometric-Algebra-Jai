@@ -67,6 +67,9 @@ x :: inline (p: Point) -> T {
 y :: inline (p: Point) -> T {
     return p.values[1]/p.values[0];
 }
+c :: inline (p: Point) -> T {
+    return p.values[0];
+}
 fmt_euclid :: (p: Point) -> string {
     return sprint("(%, %)", x(p), y(p));
 }
@@ -128,16 +131,27 @@ orthogonal_direction :: (to_line: Line) -> Direction {
 }
 
 norm :: (l: Line) -> T {
-    return sqrt(l.values[0]*l.values[0] + l.values[1]*l.values[1]);
+    lx := x(l);
+    ly := y(l);
+    return sqrt(lx*lx + ly*ly);
 }
 norm :: (p: Point) -> T {
-    return abs(p.values[0]);
+    return abs(c(p));
 }
 ideal :: (p: Point) -> T {
-    return abs(p.values[1]*p.values[1] + p.values[2]*p.values[2]);
+    DEBUG :: false;
+    #if DEBUG {
+        println("ideal(Point)");
+        println("    p : % = % = %", type_of(p), p, fmt_euclid(p));
+        println("    p.values[1]*p.values[1] + p.values[2]*p.values[2] = %", p.values[1]*p.values[1] + p.values[2]*p.values[2]);
+        println("    abs(...) = %", abs(p.values[1]*p.values[1] + p.values[2]*p.values[2]));
+    }
+    px := x(p);
+    py := y(p);
+    return sqrt(px*px + py*py);
 }
 ideal :: inline (l: Line) -> T {
-    return l.values[2];
+    return c(l);
 }
 #if Line != MV_I {
     ideal :: inline (pseudo_scalar: MV_I) -> T {
@@ -156,7 +170,19 @@ angle :: (a: Line, b: Line) -> T {
 }
 // * for parallel lines
 distance :: (a: Line, b: Line) -> T {
+    DEBUG :: true;
     an := a/norm(a);
     bn := b/norm(b);
+    #if DEBUG {
+        println("distance");
+        println("    a = % = %", a, fmt_euclid(a));
+        println("    b = % = %", b, fmt_euclid(b));
+        println("    norm(a) = %", norm(a));
+        println("    norm(b) = %", norm(b));
+        println("    an = % = %", an, fmt_euclid(an));
+        println("    bn = % = %", bn, fmt_euclid(bn));
+        println("    meet(an,bn) : % = % = %", type_of(meet(an,bn)), meet(an,bn), fmt_euclid(meet(an,bn)));
+        println("    ideal(...) = %", ideal(meet(an,bn)));
+    }
     return ideal(meet(an,bn));
 }
